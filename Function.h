@@ -104,6 +104,27 @@ public:
     QString getName() const override { return "Exponential"; }
 };
 
+// Логарифмические функции вида a * log_b(x)
+class LogarithmicFunction : public Function {
+    QVector<double> coefficients;
+public:
+    LogarithmicFunction() : coefficients({1.0, 10.0}) {}
+
+    double evaluate(double x) const override {
+        if (x <= 0) return 0; // не определено для <= 0
+        double a = coefficients.size() > 0 ? coefficients[0] : 1.0;
+        double base = coefficients.size() > 1 ? coefficients[1] : 10.0;
+
+        return a * (log(x) / log(base));
+    }
+    void setCoefficients(const QVector<double>& coeffs) override {
+        coefficients = coeffs;
+    }
+    QVector<double> getCoefficients() const override {
+        return coefficients;
+    }
+    QString getName() const override { return "Logarithmic"; }
+};
 
 
 
