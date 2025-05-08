@@ -84,6 +84,28 @@ public:
     }
 };
 
+// Экспоненциальные функции вида a * exp(b * x)
+class ExponentialFunction : public Function {
+    QVector<double> coefficients; // [a, b]
+public:
+    ExponentialFunction() : coefficients({1.0,1.0}) {}
+
+    double evaluate(double x) const override {
+        double a = coefficients.size() > 0 ? coefficients[0] : 1.0;
+        double b = coefficients.size() > 1 ? coefficients[1] : 1.0;
+        return a * exp(b * x);
+    }
+    void setCoefficients(const QVector<double>& coeffs) override {
+        coefficients = coeffs;
+    }
+    QVector<double> getCoefficients() const override {
+        return coefficients;
+    }
+    QString getName() const override { return "Exponential"; }
+};
+
+
+
 
 
 #endif // FUNCTION_H
