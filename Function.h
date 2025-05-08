@@ -126,6 +126,40 @@ public:
     QString getName() const override { return "Logarithmic"; }
 };
 
+// Модульная функции вида |x + a| + b
+class ModulusFunction : public Function {
+    // coefficients[0] = a (смещение по x)
+    // coefficients[1] = b (смещение по y)
+    QVector<double> coefficients;
+
+public:
+    ModulusFunction() : coefficients({0.0, 0.0}) {}
+
+    double evaluate(double x) const override {
+        double a = coefficients.size() > 0 ? coefficients[0] : 0.0;
+        double b = coefficients.size() > 1 ? coefficients[1] : 0.0;
+        return std::abs(x + a) + b;
+    }
+
+    void setCoefficients(const QVector<double>& coeffs) override {
+        if (coeffs.size() >= 2) {
+            coefficients = coeffs;
+        } else if (coeffs.size() == 1) {
+            coefficients = coeffs;
+            coefficients.append(0.0);
+        } else {
+            coefficients = {0.0, 0.0};
+        }
+    }
+
+    QVector<double> getCoefficients() const override {
+        return coefficients;
+    }
+
+    QString getName() const override {
+        return "Modulus";
+    }
+};
 
 
 
