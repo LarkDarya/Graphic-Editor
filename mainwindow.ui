@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1076</width>
-    <height>672</height>
+    <width>1077</width>
+    <height>704</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -308,11 +308,11 @@ font-size: 20px;
      </property>
     </widget>
    </widget>
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="pushButton_6">
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>440</y>
+      <y>470</y>
       <width>411</width>
       <height>51</height>
      </rect>
@@ -341,14 +341,14 @@ QPushButton:hover {
 </string>
     </property>
     <property name="text">
-     <string>Построить график</string>
+     <string>Добавить график к существующему</string>
     </property>
    </widget>
    <widget class="QPushButton" name="pushButton_2">
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>500</y>
+      <y>530</y>
       <width>411</width>
       <height>51</height>
      </rect>
@@ -382,7 +382,7 @@ QPushButton:hover {
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>560</y>
+      <y>590</y>
       <width>411</width>
       <height>51</height>
      </rect>
@@ -418,7 +418,7 @@ QPushButton:hover {
       <x>10</x>
       <y>20</y>
       <width>631</width>
-      <height>591</height>
+      <height>621</height>
      </rect>
     </property>
     <property name="font">
@@ -447,7 +447,7 @@ background: transparent;      /* Без фона */
        <x>10</x>
        <y>30</y>
        <width>611</width>
-       <height>551</height>
+       <height>581</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -542,13 +542,49 @@ QPushButton:hover {
      </property>
     </widget>
    </widget>
+   <widget class="QPushButton" name="pushButton">
+    <property name="geometry">
+     <rect>
+      <x>650</x>
+      <y>410</y>
+      <width>411</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QPushButton {
+    background: transparent;    /* Без фона */
+    color: white;               /* Цвет текста */
+    border: 3px solid white;    /* Белая рамка */
+    border-radius: 25px;        /* Закругленные углы */
+    padding: 11px;              /* Отступы */
+	color: white;
+	font-family: Cambria;
+	font-size: 20px;
+}
+
+QPushButton:hover {
+    background: transparent;    /* Без фона при наведении */
+    border: 4px solid white;     /* Увеличенная белая рамка при наведении */
+    text-decoration: underline;   /* Подчеркнутый текст при наведении */
+}
+
+</string>
+    </property>
+    <property name="text">
+     <string>Построить график</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1076</width>
+     <width>1077</width>
      <height>26</height>
     </rect>
    </property>

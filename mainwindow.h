@@ -25,6 +25,9 @@ private slots:
     void on_pushButton_4_clicked();
     void on_lineEdit_4_textEdited(const QString &arg1);
     void on_pushButton_clicked();
+    void on_pushButton_6_clicked();
+
+    void on_pushButton_2_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -35,6 +38,14 @@ private:
     LogarithmicFunction logFunc;
     ModulusFunction modFunc;
     RangeController* rangeController = nullptr;
+
+    QColor getNextColor();
+
+    Function* currentFunc1 = nullptr; // Для первого графика
+    Function* currentFunc2 = nullptr; // Для второго графика
+    QColor color1 = Qt::blue;         // Цвет первого графика
+    QColor color2 = Qt::red;
+
 
 };
 #endif // MAINWINDOW_H

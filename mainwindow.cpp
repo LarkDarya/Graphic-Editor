@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "QMessageBox.h"
 #include "ui_mainwindow.h"
+#include <QColor>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -101,6 +102,7 @@ void MainWindow::on_lineEdit_4_textEdited(const QString &arg1)
 
 void MainWindow::on_pushButton_clicked()
 {
+    // Проверяем диапазон
     double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
     bool okX = false, okY = false;
 
@@ -129,19 +131,21 @@ void MainWindow::on_pushButton_clicked()
 
     rangeController->setRange(xMin, xMax, yMin, yMax);
 
+    // Создаем и добавляем первый график
     if (ui->radioButton->isChecked()) {
         QString input = ui->lineEdit_4->text();
         QVector<double> coeffs = PolynomialParser::parse(input);
-        polyFunc.setCoefficients(coeffs);
-        ui->graphicWidget->setFunction(&polyFunc);
+        Function* newFunc = new PolynomialFunction();
+        newFunc->setCoefficients(coeffs);
+        ui->graphicWidget->setMainFunction(newFunc, color1);
     }
     else if (ui->radioButton_2->isChecked()) {
         QString input = ui->lineEdit_4->text();
         TrigonometricFunction* parsedFunc = TrigonometricParser::parse(input);
         if (parsedFunc) {
-            trigFunc.setType(parsedFunc->getType());
-            trigFunc.setCoefficients(parsedFunc->getCoefficients());
-            ui->graphicWidget->setFunction(&trigFunc);
+            Function* newFunc = new TrigonometricFunction(parsedFunc->getType());
+            newFunc->setCoefficients(parsedFunc->getCoefficients());
+            ui->graphicWidget->setMainFunction(newFunc, color1);
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить тригонометрическую функцию");
@@ -151,8 +155,9 @@ void MainWindow::on_pushButton_clicked()
         QString input = ui->lineEdit_4->text();
         ExponentialFunction* parsedFunc = ExponentialParser::parse(input);
         if (parsedFunc) {
-            expFunc.setCoefficients(parsedFunc->getCoefficients());
-            ui->graphicWidget->setFunction(&expFunc);
+            Function* newFunc = new ExponentialFunction();
+            newFunc->setCoefficients(parsedFunc->getCoefficients());
+            ui->graphicWidget->setMainFunction(newFunc, color1);
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить функцию экспоненты");
@@ -162,8 +167,9 @@ void MainWindow::on_pushButton_clicked()
         QString input = ui->lineEdit_4->text();
         LogarithmicFunction* parsedFunc = LogarithmicParser::parse(input);
         if (parsedFunc) {
-            logFunc.setCoefficients(parsedFunc->getCoefficients());
-            ui->graphicWidget->setFunction(&logFunc);
+            Function* newFunc = new LogarithmicFunction();
+            newFunc->setCoefficients(parsedFunc->getCoefficients());
+            ui->graphicWidget->setMainFunction(newFunc, color1);
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить логарифмическую функцию");
@@ -173,17 +179,83 @@ void MainWindow::on_pushButton_clicked()
         QString input = ui->lineEdit_4->text();
         ModulusFunction* parsedFunc = ModulusParser::parse(input);
         if (parsedFunc) {
-            modFunc.setCoefficients(parsedFunc->getCoefficients());
-            ui->graphicWidget->setFunction(&modFunc);
+            Function* newFunc = new ModulusFunction();
+            newFunc->setCoefficients(parsedFunc->getCoefficients());
+            ui->graphicWidget->setMainFunction(newFunc, color1);
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить модульную функцию");
         }
     }
-    else {
-        QMessageBox::warning(this, "Ошибка", "Не выбрана функция");
-        return;
-    }
-
-    ui->graphicWidget->update();
 }
+
+void MainWindow::on_pushButton_6_clicked()
+{
+    // Создаем и добавляем второй график
+    if (ui->radioButton->isChecked()) {
+        QString input = ui->lineEdit_4->text();
+        QVector<double> coeffs = PolynomialParser::parse(input);
+        Function* newFunc = new PolynomialFunction();
+        newFunc->setCoefficients(coeffs);
+        ui->graphicWidget->setSecondaryFunction(newFunc, color2);
+    }
+    else if (ui->radioButton_2->isChecked()) {
+        QString input = ui->lineEdit_4->text();
+        TrigonometricFunction* parsedFunc = TrigonometricParser::parse(input);
+        if (parsedFunc) {
+            Function* newFunc = new TrigonometricFunction(parsedFunc->getType());
+            newFunc->setCoefficients(parsedFunc->getCoefficients());
+            ui->graphicWidget->setSecondaryFunction(newFunc, color2);
+            delete parsedFunc;
+        } else {
+            QMessageBox::warning(this, "Ошибка", "Не удалось распарсить тригонометрическую функцию");
+        }
+    }
+    else if (ui->radioButton_3->isChecked()) {
+        QString input = ui->lineEdit_4->text();
+        ExponentialFunction* parsedFunc = ExponentialParser::parse(input);
+        if (parsedFunc) {
+            Function* newFunc = new ExponentialFunction();
+            newFunc->setCoefficients(parsedFunc->getCoefficients());
+            ui->graphicWidget->setSecondaryFunction(newFunc, color2);
+            delete parsedFunc;
+        } else {
+            QMessageBox::warning(this, "Ошибка", "Не удалось распарсить функцию экспоненты");
+        }
+    }
+    else if (ui->radioButton_4->isChecked()) {
+        QString input = ui->lineEdit_4->text();
+        LogarithmicFunction* parsedFunc = LogarithmicParser::parse(input);
+        if (parsedFunc) {
+            Function* newFunc = new LogarithmicFunction();
+            newFunc->setCoefficients(parsedFunc->getCoefficients());
+            ui->graphicWidget->setSecondaryFunction(newFunc, color2);
+            delete parsedFunc;
+        } else {
+            QMessageBox::warning(this, "Ошибка", "Не удалось распарсить логарифмическую функцию");
+        }
+    }
+    else if (ui->radioButton_9->isChecked()) {
+        QString input = ui->lineEdit_4->text();
+        ModulusFunction* parsedFunc = ModulusParser::parse(input);
+        if (parsedFunc) {
+            Function* newFunc = new ModulusFunction();
+            newFunc->setCoefficients(parsedFunc->getCoefficients());
+            ui->graphicWidget->setSecondaryFunction(newFunc, color2);
+            delete parsedFunc;
+        } else {
+            QMessageBox::warning(this, "Ошибка", "Не удалось распарсить модульную функцию");
+        }
+    }
+}
+
+void MainWindow::on_pushButton_2_clicked()
+{
+    // Очищаем все графики на виджете
+    ui->graphicWidget->clearFunctions();
+
+    // Сбрасываем указатели на функции
+    currentFunc1 = nullptr;
+    currentFunc2 = nullptr;
+}
+

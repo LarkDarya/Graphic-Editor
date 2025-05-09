@@ -8,7 +8,7 @@
 #include <QVector>
 #include <QPen>
 #include <QDebug>
-#include <cmath> // для M_PI
+#include <cmath>
 #include "Function.h"
 
 class GraphicWidget : public QWidget
@@ -16,32 +16,68 @@ class GraphicWidget : public QWidget
     Q_OBJECT
 public:
     explicit GraphicWidget(QWidget *parent = nullptr)
-        : QWidget(parent), m_function(nullptr),
-        m_xMin(-10), m_xMax(10), m_yMin(-10), m_yMax(10)
+        : QWidget(parent), m_xMin(-10), m_xMax(10), m_yMin(-10), m_yMax(10)
     {
-        setMinimumSize(400, 300);
+        setMinimumSize(600, 400);
+        setAutoFillBackground(true);
+        m_background = QPixmap(size());
     }
 
-    // Установка функции для отображения
-    void setFunction(Function* func)
+    // Добавление функции для отображения
+    void addFunction(Function* func, const QColor& color = Qt::blue)
     {
-        m_function = func;
-        update(); // перерисовать виджет при смене функции
+        m_functions.append({func, color});
+        updateBackground();
+        update();
     }
 
-    // Задать диапазон отображения по X
+    // Очистка всех функций
+    void clearFunctions()
+    {
+        for (auto& funcInfo : m_functions) {
+            delete funcInfo.function;
+        }
+        m_functions.clear();
+        update();
+    }
+
+    void setMainFunction(Function* func, const QColor& color) {
+        if (m_functions.size() > 0) {
+            delete m_functions[0].function;
+            m_functions[0] = {func, color};
+        } else {
+            m_functions.append({func, color});
+        }
+        update();
+    }
+
+    void setSecondaryFunction(Function* func, const QColor& color) {
+        if (m_functions.size() > 1) {
+            delete m_functions[1].function;
+            m_functions[1] = {func, color};
+        } else if (m_functions.size() == 1) {
+            m_functions.append({func, color});
+        } else {
+            // Если нет основного графика, добавляем как основной
+            m_functions.append({func, color});
+        }
+        update();
+    }
+
+    // Установка диапазонов
     void setXRange(double xmin, double xmax)
     {
         m_xMin = xmin;
         m_xMax = xmax;
+        updateBackground();
         update();
     }
 
-    // Задать диапазон отображения по Y
     void setYRange(double ymin, double ymax)
     {
         m_yMin = ymin;
         m_yMax = ymax;
+        updateBackground();
         update();
     }
 
@@ -55,60 +91,109 @@ protected:
     void paintEvent(QPaintEvent* event) override
     {
         Q_UNUSED(event);
-
         QPainter painter(this);
-        painter.fillRect(rect(), Qt::white);
 
-        // Рисуем сетку и оси
-        drawGrid(painter);
-        drawAxes(painter);
+        // Рисуем сохраненный фон
+        painter.drawPixmap(0, 0, m_background);
 
-        if (!m_function) {
-            painter.setPen(Qt::black);
-
-            QFont font("Cambria", 12);
-            painter.setFont(font);
-
-            QString text = "Функция не задана";
-            QFontMetrics fm = painter.fontMetrics();
-            int textHeight = fm.height();
-
-            QRect textRect = rect();
-            textRect.setHeight(textHeight);
-            painter.drawText(textRect, Qt::AlignHCenter | Qt::AlignTop, text);
-
-            return;
-        }
-
-        drawFunction(painter);
+        // Рисуем текущие функции поверх
+        drawFunctions(painter);
     }
 
+    void resizeEvent(QResizeEvent* event) override
+    {
+        QWidget::resizeEvent(event);
+        m_background = QPixmap(size());
+        updateBackground();
+    }
 
 private:
-    Function* m_function;
+    struct FunctionInfo {
+        Function* function;
+        QColor color;
+    };
 
+    QVector<FunctionInfo> m_functions;
     double m_xMin, m_xMax;
     double m_yMin, m_yMax;
+    const int margin = 50; // увеличенные отступы
+    QPixmap m_background;
 
-    const int margin = 40; // отступы для осей
 
-    // Преобразуем координату X из математической (в диапазоне [m_xMin, m_xMax])
-    // в координату окна (пиксели)
+    // Преобразование координат
     int mapX(double x) const
     {
         double w = width() - 2 * margin;
-        return margin + int((x - m_xMin) / (m_xMax - m_xMin) * w);
+        return margin + static_cast<int>((x - m_xMin) / (m_xMax - m_xMin) * w);
     }
 
-    // Преобразуем координату Y из математической (в диапазоне [m_yMin, m_yMax])
-    // в координату окна (пиксели)
     int mapY(double y) const
     {
         double h = height() - 2 * margin;
-        // Учёт, что в системе координат Qt Y растёт вниз
-        return margin + int((m_yMax - y) / (m_yMax - m_yMin) * h);
+        return margin + static_cast<int>((m_yMax - y) / (m_yMax - m_yMin) * h);
     }
 
+    // Обновление фона (осей и сетки)
+    void updateBackground()
+    {
+        m_background.fill(Qt::white);
+        QPainter painter(&m_background);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        drawGrid(painter);
+        drawAxes(painter);
+
+        if (m_functions.isEmpty()) {
+            painter.setPen(Qt::black);
+            QFont font("Cambria", 12);
+            painter.setFont(font);
+            painter.drawText(rect(), Qt::AlignCenter, "Функция не задана");
+        }
+    }
+
+    // Рисование функций
+    void drawFunctions(QPainter& painter)
+    {
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        for (const auto& funcInfo : m_functions) {
+            drawFunction(painter, funcInfo.function, funcInfo.color);
+        }
+    }
+
+    // Рисование одной функции
+    void drawFunction(QPainter& painter, Function* function, const QColor& color)
+    {
+        int w = width() - 2 * margin;
+        if (w <= 0) return;
+
+        QPainterPath path;
+        bool firstPoint = true;
+
+        // Увеличиваем количество точек для более плавного графика
+        int pointCount = w * 2;
+        for (int i = 0; i <= pointCount; ++i) {
+            double x = m_xMin + (m_xMax - m_xMin) * i / pointCount;
+            double y = function->evaluate(x);
+
+            if (y >= m_yMin && y <= m_yMax) {
+                QPoint p(mapX(x), mapY(y));
+                if (firstPoint) {
+                    path.moveTo(p);
+                    firstPoint = false;
+                } else {
+                    path.lineTo(p);
+                }
+            } else {
+                firstPoint = true;
+            }
+        }
+
+        painter.setPen(QPen(color, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter.drawPath(path);
+    }
+
+    // Рисование осей
     void drawAxes(QPainter& painter)
     {
         painter.setPen(QPen(Qt::black, 2));
@@ -123,10 +208,11 @@ private:
 
         // Подписи осей
         painter.setPen(Qt::black);
-        painter.setFont(QFont("Cambria", 10));
+        QFont font("Cambria", 10);
+        painter.setFont(font);
 
         // Отметки по X
-        int n = 10; // число промежутков
+        int n = 10;
         for (int i = 0; i <= n; ++i) {
             double xVal = m_xMin + i * (m_xMax - m_xMin) / n;
             int xPos = mapX(xVal);
@@ -138,17 +224,17 @@ private:
         for (int i = 0; i <= n; ++i) {
             double yVal = m_yMin + i * (m_yMax - m_yMin) / n;
             int yPos = mapY(yVal);
-            painter.drawLine(mapX(0) - 5, yPos, mapX(0) + 5, yPos);
-            painter.drawText(mapX(0) - 35, yPos + 5, QString::number(yVal, 'f', 1));
+            painter.drawLine(x0 - 5, yPos, x0 + 5, yPos);
+            painter.drawText(x0 - 35, yPos + 5, QString::number(yVal, 'f', 1));
         }
     }
 
+    // Рисование сетки
     void drawGrid(QPainter& painter)
     {
-        painter.setPen(QPen(Qt::gray, 1, Qt::DashLine));
+        painter.setPen(QPen(QColor(220, 220, 220), 1));
 
-        int n = 10; // число сеточных линий по каждой оси
-
+        int n = 10;
         // Вертикальные линии
         for (int i = 0; i <= n; ++i) {
             double xVal = m_xMin + i * (m_xMax - m_xMin) / n;
@@ -163,40 +249,6 @@ private:
             painter.drawLine(margin, yPos, width() - margin, yPos);
         }
     }
-
-    void drawFunction(QPainter& painter)
-    {
-        painter.setPen(QPen(Qt::blue, 2));
-
-        // Рисуем функцию сглаженными линиями
-        // Берём точки с шагом по X, равным 1 пикселю окна, преобразуем в координаты функции
-
-        int w = width() - 2 * margin;
-        if (w <= 0)
-            return;
-
-        QVector<QPoint> points;
-        points.reserve(w);
-
-        for (int i = 0; i <= w; ++i) {
-            double x = m_xMin + (m_xMax - m_xMin) * i / w;
-            double y = m_function->evaluate(x);
-
-            // Игнорируем точки вне диапазона Y (для отрезков рисования)
-            if (y < m_yMin || y > m_yMax)
-                points.append(QPoint(mapX(x), -1)); // помечаем как «пропуск»
-            else
-                points.append(QPoint(mapX(x), mapY(y)));
-        }
-
-        // Рисуем линии между точками, игнорируя пропуски
-        for (int i = 1; i < points.size(); ++i) {
-            if (points[i - 1].y() >= 0 && points[i].y() >= 0) {
-                painter.drawLine(points[i - 1], points[i]);
-            }
-        }
-    }
-
 };
 
 #endif // GRAPHICWIDGET_H

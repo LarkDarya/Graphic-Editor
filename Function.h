@@ -129,52 +129,70 @@ public:
 };
 
 
-
-// Логарифмические функции вида a * log_b(x)
 class LogarithmicFunction : public Function {
-    QVector<double> coefficients;
+    QVector<double> coefficients; // [a, base, c, d, e]
 public:
-    LogarithmicFunction() : coefficients({1.0, 10.0}) {}
+    LogarithmicFunction() : coefficients({1.0, 10.0, 1.0, 0.0, 0.0}) {}
 
     double evaluate(double x) const override {
-        if (x <= 0) return 0; // не определено для <= 0
-        double a = coefficients.size() > 0 ? coefficients[0] : 1.0;
-        double base = coefficients.size() > 1 ? coefficients[1] : 10.0;
+        // Получаем все коэффициенты
+        double a = coefficients.value(0, 1.0);
+        double base = coefficients.value(1, 10.0);
+        double c = coefficients.value(2, 1.0);
+        double d = coefficients.value(3, 0.0);
+        double e = coefficients.value(4, 0.0);
 
-        return a * (log(x) / log(base));
+        // Вычисляем аргумент логарифма
+        double arg = c * x + e;
+        if (arg <= 0) return 0; // Логарифм не определен
+
+        // Вычисляем значение
+        return d + a * (log(arg) / log(base));
     }
+
     void setCoefficients(const QVector<double>& coeffs) override {
         coefficients = coeffs;
+        // Гарантируем минимальное количество коэффициентов
+        while (coefficients.size() < 5) {
+            if (coefficients.size() == 2) coefficients.append(1.0); // c
+            else if (coefficients.size() == 3) coefficients.append(0.0); // d
+            else coefficients.append(0.0); // e
+        }
     }
+
     QVector<double> getCoefficients() const override {
         return coefficients;
     }
-    QString getName() const override { return "Logarithmic"; }
+
+    QString getName() const override {
+        return "Logarithmic";
+    }
 };
 
 // Модульная функции вида |x + a| + b
 class ModulusFunction : public Function {
-    // coefficients[0] = a (смещение по x)
-    // coefficients[1] = b (смещение по y)
+    // coefficients[0] = b (смещение внутри модуля)
+    // coefficients[1] = d (смещение по y)
+    // coefficients[2] = a (коэффициент при x)
+    // coefficients[3] = c (множитель перед модулем)
     QVector<double> coefficients;
 
 public:
-    ModulusFunction() : coefficients({0.0, 0.0}) {}
+    ModulusFunction() : coefficients({0.0, 0.0, 1.0, 1.0}) {}
 
     double evaluate(double x) const override {
-        double a = coefficients.size() > 0 ? coefficients[0] : 0.0;
-        double b = coefficients.size() > 1 ? coefficients[1] : 0.0;
-        return std::abs(x + a) + b;
+        double b = coefficients.size() > 0 ? coefficients[0] : 0.0;
+        double d = coefficients.size() > 1 ? coefficients[1] : 0.0;
+        double a = coefficients.size() > 2 ? coefficients[2] : 1.0;
+        double c = coefficients.size() > 3 ? coefficients[3] : 1.0;
+
+        return d + c * std::abs(a * x + b);
     }
 
     void setCoefficients(const QVector<double>& coeffs) override {
-        if (coeffs.size() >= 2) {
-            coefficients = coeffs;
-        } else if (coeffs.size() == 1) {
-            coefficients = coeffs;
+        coefficients = coeffs;
+        while (coefficients.size() < 4) {
             coefficients.append(0.0);
-        } else {
-            coefficients = {0.0, 0.0};
         }
     }
 

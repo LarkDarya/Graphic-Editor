@@ -159,45 +159,149 @@ public:
     }
 };
 
-// Парсер для логарифмических функций
 class LogarithmicParser {
 public:
     static LogarithmicFunction* parse(const QString& input) {
         QString str = input.simplified().replace(" ", "");
 
-        // Шаблон для функций вида a*log_b(x)
-        QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?log_(\d+\.?\d*)\(x\)$)");
-        QRegularExpressionMatch match = re.match(str);
+        // Обработка дробей в выражении
+        str = replaceFractions(str);
 
-        if (!match.hasMatch()) {
-            // Попробуем натуральный логарифм
-            re.setPattern(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?ln\(x\)$)");
-            match = re.match(str);
-            if (!match.hasMatch()) {
-                // Попробуем простой log(x) (по основанию 10)
-                re.setPattern(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?log\(x\)$)");
-                match = re.match(str);
-                if (!match.hasMatch()) {
-                    return nullptr;
+        // Определяем тип логарифма и основание
+        struct LogInfo {
+            QString pattern;
+            double defaultBase;
+        };
+
+        QVector<LogInfo> logTypes = {
+            {"log_", 10.0}, // Основание будет извлечено
+            {"ln(", M_E},
+            {"log(", 10.0}
+        };
+
+        QString matchedType;
+        double base = 10.0;
+        QString innerExpr;
+
+        // Ищем совпадение с типами логарифмов
+        for (const auto& lt : logTypes) {
+            if (str.contains(lt.pattern)) {
+                matchedType = lt.pattern;
+                base = lt.defaultBase;
+
+                // Для log_ извлекаем основание
+                if (lt.pattern == "log_") {
+                    QRegularExpression baseRe(R"(log_(\d+\.?\d*|\(\d+/\d+\))\()");
+                    QRegularExpressionMatch baseMatch = baseRe.match(str);
+                    if (baseMatch.hasMatch()) {
+                        QString baseStr = baseMatch.captured(1);
+                        if (baseStr.contains('/')) {
+                            base = evalFraction(baseStr);
+                        } else {
+                            base = baseStr.toDouble();
+                        }
+                    }
                 }
-                double a = match.captured(1).isEmpty() ? 1.0 : match.captured(1).toDouble();
-                LogarithmicFunction* func = new LogarithmicFunction();
-                func->setCoefficients({a, 10.0}); // десятичный логарифм
-                return func;
-            }
 
-            double a = match.captured(1).isEmpty() ? 1.0 : match.captured(1).toDouble();
-            LogarithmicFunction* func = new LogarithmicFunction();
-            func->setCoefficients({a, M_E}); // натуральный логарифм
-            return func;
+                // Извлекаем внутреннее выражение
+                int start = str.indexOf(matchedType) + matchedType.length();
+                int end = str.indexOf(")", start);
+                if (end == -1) return nullptr;
+                innerExpr = str.mid(start, end - start);
+                break;
+            }
         }
 
-        double a = match.captured(1).isEmpty() ? 1.0 : match.captured(1).toDouble();
-        double base = match.captured(2).toDouble();
+        if (matchedType.isEmpty()) return nullptr;
 
+        // Парсим коэффициенты
+        double a = 1.0, c = 1.0, e = 0.0, d = 0.0;
+
+        // Парсим выражение перед логарифмом (d + a*)
+        QString prefix = str.left(str.indexOf(matchedType));
+        if (!prefix.isEmpty()) {
+            // Обработка дробей и сложных выражений
+            if (prefix.contains('/') || prefix.contains('+') || prefix.contains('-')) {
+                QRegularExpression prefixRe(R"(([^+]*)\+?([^+]*)\*?)");
+                QRegularExpressionMatch prefixMatch = prefixRe.match(prefix);
+
+                if (prefixMatch.hasMatch()) {
+                    QString dStr = prefixMatch.captured(1);
+                    QString aStr = prefixMatch.captured(2);
+
+                    if (!dStr.isEmpty()) d = evalExpression(dStr);
+                    if (!aStr.isEmpty()) a = evalExpression(aStr);
+                }
+            } else {
+                // Простые случаи
+                if (prefix == "-") a = -1.0;
+                else if (prefix == "+") a = 1.0;
+                else if (prefix.endsWith("*")) a = evalExpression(prefix.left(prefix.length()-1));
+                else a = evalExpression(prefix);
+            }
+        }
+
+        // Парсим внутреннее выражение (c*x + e)
+        if (!innerExpr.isEmpty()) {
+            innerExpr = innerExpr.replace(" ", "");
+
+            if (innerExpr.contains("x")) {
+                QRegularExpression innerRe(R"(([^x]*)x([^+]*)");
+                QRegularExpressionMatch innerMatch = innerRe.match(innerExpr);
+
+                if (innerMatch.hasMatch()) {
+                    QString cStr = innerMatch.captured(1);
+                    QString eStr = innerMatch.captured(2);
+
+                    if (!cStr.isEmpty()) c = evalExpression(cStr.isEmpty() ? "1" : cStr);
+                    if (!eStr.isEmpty()) e = evalExpression(eStr);
+                }
+            } else {
+                e = evalExpression(innerExpr);
+                c = 0.0;
+            }
+        }
+
+        // Создаем и возвращаем функцию
         LogarithmicFunction* func = new LogarithmicFunction();
-        func->setCoefficients({a, base});
+        func->setCoefficients({a, base, c, d, e});
         return func;
+    }
+
+private:
+    static QString replaceFractions(const QString& expr) {
+        QString result = expr;
+        QRegularExpression fracRe(R"(\((\d+)/(\d+)\))");
+        QRegularExpressionMatchIterator i = fracRe.globalMatch(expr);
+
+        while (i.hasNext()) {
+            QRegularExpressionMatch match = i.next();
+            double num = match.captured(1).toDouble();
+            double den = match.captured(2).toDouble();
+            if (den != 0) {
+                double value = num / den;
+                result.replace(match.captured(0), QString::number(value, 'g', 10));
+            }
+        }
+        return result;
+    }
+
+    static double evalFraction(const QString& frac) {
+        QStringList parts = frac.split('/');
+        if (parts.size() == 2) {
+            double num = parts[0].toDouble();
+            double den = parts[1].toDouble();
+            return den != 0 ? num / den : 1.0;
+        }
+        return 1.0;
+    }
+
+    static double evalExpression(const QString& expr) {
+        if (expr.isEmpty()) return 1.0;
+        if (expr == "-") return -1.0;
+        if (expr == "+") return 1.0;
+        if (expr.contains('/')) return evalFraction(expr);
+        return expr.toDouble();
     }
 };
 
@@ -207,25 +311,53 @@ public:
     static ModulusFunction* parse(const QString& input) {
         QString str = input.simplified().replace(" ", "");
 
-        // Шаблон для функций вида |x + a| + b
-        QRegularExpression re(R"(^\|x([+-]\d+\.?\d*)?\|([+-]\d+\.?\d*)?$)");
+        // Общий шаблон: d + c*|a*x + b|
+        QRegularExpression re(R"(^([+-]?\d*\.?\d*)\+?([+-]?\d*\.?\d*)\*?\|([+-]?\d*\.?\d*)\*?x([+-]\d+\.?\d*)?\|$)");
         QRegularExpressionMatch match = re.match(str);
 
         if (!match.hasMatch()) {
-            // Проверим простой случай |x|
-            if (str == "|x|") {
-                ModulusFunction* func = new ModulusFunction();
-                func->setCoefficients({0.0, 0.0});
-                return func;
+            // Попробуем вариант без смещения d: c*|a*x + b|
+            re.setPattern(R"(^([+-]?\d*\.?\d*)\*?\|([+-]?\d*\.?\d*)\*?x([+-]\d+\.?\d*)?\|$)");
+            match = re.match(str);
+
+            if (!match.hasMatch()) {
+                // Попробуем простые случаи
+                if (str == "|x|") {
+                    ModulusFunction* func = new ModulusFunction();
+                    func->setCoefficients({0.0, 0.0, 1.0, 1.0});
+                    return func;
+                }
+                else if (str == "|-x|") {
+                    ModulusFunction* func = new ModulusFunction();
+                    func->setCoefficients({0.0, 0.0, -1.0, 1.0});
+                    return func;
+                }
+                else if (str == "-|x|") {
+                    ModulusFunction* func = new ModulusFunction();
+                    func->setCoefficients({0.0, 0.0, 1.0, -1.0});
+                    return func;
+                }
+                return nullptr;
             }
-            return nullptr;
+
+            // Обработка c*|a*x + b|
+            double c = match.captured(1).isEmpty() ? 1.0 : match.captured(1).toDouble();
+            double a = match.captured(2).isEmpty() ? 1.0 : match.captured(2).toDouble();
+            double b = match.captured(3).isEmpty() ? 0.0 : match.captured(3).toDouble();
+
+            ModulusFunction* func = new ModulusFunction();
+            func->setCoefficients({b, 0.0, a, c});
+            return func;
         }
 
-        double a = match.captured(1).isEmpty() ? 0.0 : match.captured(1).toDouble();
-        double b = match.captured(2).isEmpty() ? 0.0 : match.captured(2).toDouble();
+        // Обработка полной формы: d + c*|a*x + b|
+        double d = match.captured(1).isEmpty() ? 0.0 : match.captured(1).toDouble();
+        double c = match.captured(2).isEmpty() ? 1.0 : match.captured(2).toDouble();
+        double a = match.captured(3).isEmpty() ? 1.0 : match.captured(3).toDouble();
+        double b = match.captured(4).isEmpty() ? 0.0 : match.captured(4).toDouble();
 
         ModulusFunction* func = new ModulusFunction();
-        func->setCoefficients({a, b});
+        func->setCoefficients({b, d, a, c});
         return func;
     }
 };
