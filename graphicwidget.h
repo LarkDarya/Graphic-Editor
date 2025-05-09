@@ -4,9 +4,11 @@
 #include <QWidget>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QPainterPath>
 #include <QVector>
 #include <QPen>
 #include <QDebug>
+#include <cmath> // для M_PI
 #include "Function.h"
 
 class GraphicWidget : public QWidget
@@ -57,30 +59,26 @@ protected:
         QPainter painter(this);
         painter.fillRect(rect(), Qt::white);
 
-        // Всегда рисуем сетку и оси
+        // Рисуем сетку и оси
         drawGrid(painter);
         drawAxes(painter);
 
         if (!m_function) {
             painter.setPen(Qt::black);
 
-            // Устанавливаем шрифт Cambria размером 12
             QFont font("Cambria", 12);
             painter.setFont(font);
 
-            // Получаем высоту текста
             QString text = "Функция не задана";
             QFontMetrics fm = painter.fontMetrics();
             int textHeight = fm.height();
 
-            // Рисуем текст над графиком, с небольшим отступом сверху
             QRect textRect = rect();
             textRect.setHeight(textHeight);
             painter.drawText(textRect, Qt::AlignHCenter | Qt::AlignTop, text);
 
             return;
         }
-
 
         drawFunction(painter);
     }
@@ -198,6 +196,7 @@ private:
             }
         }
     }
+
 };
 
 #endif // GRAPHICWIDGET_H

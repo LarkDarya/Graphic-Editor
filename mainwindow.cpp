@@ -8,33 +8,11 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     this->setWindowIcon(QIcon("F:/Даша/Репозиторий/GraphicEditor/Иконка.png"));
-    // Изначально делаем label_3 и lineEdit_3 неактивными и "сероватыми"
-    ui->label_3->setEnabled(false);
-    ui->lineEdit_3->setEnabled(false);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
-}
-
-// Обработка шага (если функция не тригонометрическая, то шаг не используется)
-void MainWindow::on_radioButton_2_toggled(bool checked)
-{
-    ui->label_3->setEnabled(checked);
-    ui->lineEdit_3->setEnabled(checked);
-
-    if (checked) {
-        ui->label_3->setStyleSheet("background: transparent;color: white;font-family: Cambria;font-size: 20px;");
-        ui->lineEdit_3->setStyleSheet("background: transparent;color: white; border: 2px solid white;");
-    } else {
-        ui->label_3->setEnabled(false);
-        ui->lineEdit_3->setEnabled(false);
-        ui->lineEdit_3->clear();
-
-        ui->label_3->setStyleSheet("background: #f0f0f0;color: gray;font-family: Cambria;font-size: 20px;");
-        ui->lineEdit_3->setStyleSheet("background: #f0f0f0;");
-    }
 }
 
 // Обработка подсказки
@@ -102,44 +80,68 @@ void MainWindow::on_lineEdit_4_textEdited(const QString &arg1)
         polyFunc.setCoefficients(coefs);
     }
 
+    if (ui->radioButton_2->isChecked()) {
+        // Получаем текущий текст из lineEdit_4 (аргумент arg1 в вашем слоте тоже можно использовать)
+        QString input = ui->lineEdit_4->text();
+
+        // Парсим строку через ваш парсер тригонометрических функций
+        TrigonometricFunction* parsedFunc = TrigonometricParser::parse(input);
+
+        if (parsedFunc) {
+            // Устанавливаем тип и коэффициенты из результата парсинга
+            trigFunc.setType(parsedFunc->getType());
+            trigFunc.setCoefficients(parsedFunc->getCoefficients());
+
+            delete parsedFunc; // освобождаем память
+        }
+
+    }
+
 }
 
 void MainWindow::on_pushButton_clicked()
 {
+    double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
+    bool okX = false, okY = false;
+
+    double x = ui->lineEdit->text().toDouble(&okX);
+    if (okX) {
+        xMin = -x;
+        xMax = x;
+    }
+
+    double y = ui->lineEdit_2->text().toDouble(&okY);
+    if (okY) {
+        yMin = -y;
+        yMax = y;
+    }
+
+    // Проверяем валидность введенных данных
+    if (!(okX && okY)) {
+        QMessageBox::warning(this, "Ошибка", "Некорректный ввод диапазона осей");
+        return;
+    }
+
+    if (!rangeController) {
+        rangeController = new RangeController(this);
+        connect(rangeController, &RangeController::rangeChanged,
+                ui->graphicWidget, &GraphicWidget::setRange);
+    }
+
+    // Полиноминальная функция
     if (ui->radioButton->isChecked()) {
-        double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
-        bool okX = false, okY = false;
-
-        double x = ui->lineEdit->text().toDouble(&okX);
-        if (okX) {
-            xMin = -x;
-            xMax = x;
-        }
-
-        double y = ui->lineEdit_2->text().toDouble(&okY);
-        if (okY) {
-            yMin = -y;
-            yMax = y;
-        }
-
-        // Проверяем валидность введенных данных
-        if (!(okX && okY)) {
-            QMessageBox::warning(this, "Ошибка", "Некорректный ввод диапазона осей");
-            return;
-        }
-
-        if (!rangeController) {
-            rangeController = new RangeController(this);
-            connect(rangeController, &RangeController::rangeChanged,
-                    ui->graphicWidget, &GraphicWidget::setRange);
-        }
-
-        // Передаем диапазоны через слот
         rangeController->setRange(xMin, xMax, yMin, yMax);
-
         ui->graphicWidget->setFunction(&polyFunc);
         ui->graphicWidget->update();
     }
+
+    // Тригонометрическая функция
+    if (ui->radioButton_2->isChecked()) {
+        rangeController->setRange(xMin, xMax, yMin, yMax);
+        ui->graphicWidget->setFunction(&trigFunc);
+        ui->graphicWidget->update();
+    }
+
 
 }
 

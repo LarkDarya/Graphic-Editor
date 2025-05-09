@@ -202,7 +202,7 @@ font-size: 20px;
       <x>650</x>
       <y>180</y>
       <width>411</width>
-      <height>151</height>
+      <height>111</height>
      </rect>
     </property>
     <property name="font">
@@ -267,27 +267,6 @@ color: white;               /* Цвет текста */
 border: 2px solid white;    /* Белая рамка */</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="lineEdit_3">
-     <property name="geometry">
-      <rect>
-       <x>90</x>
-       <y>110</y>
-       <width>311</width>
-       <height>31</height>
-      </rect>
-     </property>
-     <property name="font">
-      <font>
-       <family>Cambria Math</family>
-       <pointsize>14</pointsize>
-      </font>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">background: #f0f0f0;
-color: white;               /* Цвет текста */
-border: 2px solid white;    /* Белая рамка */</string>
-     </property>
-    </widget>
     <widget class="QLabel" name="label">
      <property name="geometry">
       <rect>
@@ -326,31 +305,6 @@ font-size: 20px;
      </property>
      <property name="text">
       <string>Y</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label_3">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>110</y>
-       <width>71</width>
-       <height>31</height>
-      </rect>
-     </property>
-     <property name="layoutDirection">
-      <enum>Qt::LayoutDirection::LeftToRight</enum>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">QLabel {
-background: #f0f0f0;
-color: gray;
-font-family: Cambria;
-font-size: 20px;
-}
-</string>
-     </property>
-     <property name="text">
-      <string>H (шаг)</string>
      </property>
     </widget>
    </widget>
@@ -505,7 +459,7 @@ background: transparent;      /* Без фона */
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>350</y>
+      <y>310</y>
       <width>411</width>
       <height>71</height>
      </rect>

@@ -22,10 +22,7 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_radioButton_2_toggled(bool checked);
-
     void on_pushButton_4_clicked();
-
     void on_lineEdit_4_textEdited(const QString &arg1);
     void on_pushButton_clicked();
 
@@ -33,7 +30,8 @@ private:
     Ui::MainWindow *ui;
     GraphicWidget* graphicWidget;
     PolynomialFunction polyFunc;
-    RangeController* rangeController = nullptr;;
+    TrigonometricFunction trigFunc;
+    RangeController* rangeController = nullptr;
 
 };
 #endif // MAINWINDOW_H

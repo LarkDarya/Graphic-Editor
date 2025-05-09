@@ -44,9 +44,20 @@ public:
 private:
     Type funcType;
     QVector<double> coefficients;
+    double step;
 
 public:
-    explicit TrigonometricFunction(Type type) : funcType(type), coefficients({1.0, 0.0}) {}
+    TrigonometricFunction()
+        : funcType(Sin), coefficients({1.0, 0.0}), step(0.1) {}
+
+    explicit TrigonometricFunction(Type type)
+        : funcType(type), coefficients({1.0, 0.0}), step(0.1) {}
+
+    void setType(Type type) { funcType = type; }
+
+    Type getType() const {
+        return funcType;
+    }
 
     double evaluate(double x) const override {
         double amplitude = coefficients.size() > 0 ? coefficients[0] : 1.0;
@@ -82,7 +93,17 @@ public:
         }
         return "Trigonometric";
     }
+
+    void setStep(double h) {
+        if (h > 0)
+            step = h;
+    }
+
+    double getStep() const {
+        return step;
+    }
 };
+
 
 // Экспоненциальные функции вида a * exp(b * x)
 class ExponentialFunction : public Function {
