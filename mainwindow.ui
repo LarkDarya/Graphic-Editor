@@ -487,7 +487,7 @@ background: transparent;      /* Без фона */
     <property name="title">
      <string>График</string>
     </property>
-    <widget class="GraphicWidget" name="widget" native="true">
+    <widget class="GraphicWidget" name="graphicWidget" native="true">
      <property name="geometry">
       <rect>
        <x>10</x>

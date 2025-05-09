@@ -37,6 +37,7 @@ void MainWindow::on_radioButton_2_toggled(bool checked)
     }
 }
 
+// Обработка подсказки
 void MainWindow::on_pushButton_4_clicked()
 {
     QMessageBox msgBox;
@@ -75,7 +76,7 @@ void MainWindow::on_pushButton_4_clicked()
             padding: 11px;
             font-family: Cambria;
             font-size: 12px;
-            min-width: 70px;         /* минимальная ширина кнопки */
+            min-width: 70px;
             min-height: 15px;
         }
         QMessageBox QPushButton:hover {
@@ -84,22 +85,61 @@ void MainWindow::on_pushButton_4_clicked()
         }
     )");
 
-    // Добавляем кнопку ОК, если её нет
     if (!msgBox.button(QMessageBox::Ok)) {
         msgBox.addButton(QMessageBox::Ok);
     }
 
-    // Приводим тип и можно дополнительно работать с кнопкой, если надо
     QAbstractButton *abstractOkButton = msgBox.button(QMessageBox::Ok);
     QPushButton *okButton = qobject_cast<QPushButton *>(abstractOkButton);
-
-    if (okButton) {
-        // Можно здесь настроить что-то дополнительно для okButton, если нужно
-    }
-
     msgBox.exec();
 }
 
+void MainWindow::on_lineEdit_4_textEdited(const QString &arg1)
+{
+    if (ui->radioButton->isChecked()) {
+        // Парсим полиномиальную функцию из строки
+        QVector<double> coefs = PolynomialParser::parse(arg1);
+        polyFunc.setCoefficients(coefs);
+    }
 
+}
 
+void MainWindow::on_pushButton_clicked()
+{
+    if (ui->radioButton->isChecked()) {
+        double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
+        bool okX = false, okY = false;
+
+        double x = ui->lineEdit->text().toDouble(&okX);
+        if (okX) {
+            xMin = -x;
+            xMax = x;
+        }
+
+        double y = ui->lineEdit_2->text().toDouble(&okY);
+        if (okY) {
+            yMin = -y;
+            yMax = y;
+        }
+
+        // Проверяем валидность введенных данных
+        if (!(okX && okY)) {
+            QMessageBox::warning(this, "Ошибка", "Некорректный ввод диапазона осей");
+            return;
+        }
+
+        if (!rangeController) {
+            rangeController = new RangeController(this);
+            connect(rangeController, &RangeController::rangeChanged,
+                    ui->graphicWidget, &GraphicWidget::setRange);
+        }
+
+        // Передаем диапазоны через слот
+        rangeController->setRange(xMin, xMax, yMin, yMax);
+
+        ui->graphicWidget->setFunction(&polyFunc);
+        ui->graphicWidget->update();
+    }
+
+}
 

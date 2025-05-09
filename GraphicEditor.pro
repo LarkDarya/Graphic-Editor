@@ -13,6 +13,9 @@ SOURCES += \
     mainwindow.cpp
 
 HEADERS += \
+    Function.h \
+    Parser.h \
+    RangeController.h \
     graphicwidget.h \
     mainwindow.h
 

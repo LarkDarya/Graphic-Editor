@@ -2,6 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "graphicwidget.h"
+#include "RangeController.h"
+#include "Parser.h"
+#include "Function.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -18,13 +22,18 @@ public:
     ~MainWindow();
 
 private slots:
-
-
     void on_radioButton_2_toggled(bool checked);
 
     void on_pushButton_4_clicked();
 
+    void on_lineEdit_4_textEdited(const QString &arg1);
+    void on_pushButton_clicked();
+
 private:
     Ui::MainWindow *ui;
+    GraphicWidget* graphicWidget;
+    PolynomialFunction polyFunc;
+    RangeController* rangeController = nullptr;;
+
 };
 #endif // MAINWINDOW_H
