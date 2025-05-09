@@ -43,15 +43,14 @@ public:
     enum Type { Sin, Cos, Tan, Cot };
 private:
     Type funcType;
-    QVector<double> coefficients;
-    double step;
+    QVector<double> coefficients;  // [d, a, b, c]
 
 public:
     TrigonometricFunction()
-        : funcType(Sin), coefficients({1.0, 0.0}), step(0.1) {}
+        : funcType(Sin), coefficients({0.0, 1.0, 1.0, 0.0}) {}
 
     explicit TrigonometricFunction(Type type)
-        : funcType(type), coefficients({1.0, 0.0}), step(0.1) {}
+        : funcType(type), coefficients({0.0, 1.0, 1.0, 0.0}) {}
 
     void setType(Type type) { funcType = type; }
 
@@ -60,17 +59,20 @@ public:
     }
 
     double evaluate(double x) const override {
-        double amplitude = coefficients.size() > 0 ? coefficients[0] : 1.0;
-        double shift = coefficients.size() > 1 ? coefficients[1] : 0.0;
-        double val = x + shift;
+        double d = coefficients.size() > 0 ? coefficients[0] : 0.0;
+        double a = coefficients.size() > 1 ? coefficients[1] : 1.0;
+        double b = coefficients.size() > 2 ? coefficients[2] : 1.0;
+        double c = coefficients.size() > 3 ? coefficients[3] : 0.0;
 
-        switch(funcType) {
-        case Sin: return amplitude * sin(val);
-        case Cos: return amplitude * cos(val);
-        case Tan: return amplitude * tan(val);
+        double val = b * x + c;
+
+        switch (funcType) {
+        case Sin: return d + a * sin(val);
+        case Cos: return d + a * cos(val);
+        case Tan: return d + a * tan(val);
         case Cot: {
             double t = tan(val);
-            return (t != 0) ? amplitude / t : 0;
+            return d + (t != 0 ? a / t : 0);
         }
         }
         return 0;
@@ -78,6 +80,9 @@ public:
 
     void setCoefficients(const QVector<double>& coeffs) override {
         coefficients = coeffs;
+        while (coefficients.size() < 4) {
+            coefficients.push_back(0.0);
+        }
     }
 
     QVector<double> getCoefficients() const override {
@@ -93,37 +98,37 @@ public:
         }
         return "Trigonometric";
     }
-
-    void setStep(double h) {
-        if (h > 0)
-            step = h;
-    }
-
-    double getStep() const {
-        return step;
-    }
 };
-
 
 // Экспоненциальные функции вида a * exp(b * x)
 class ExponentialFunction : public Function {
-    QVector<double> coefficients; // [a, b]
+    QVector<double> coefficients; // [d, a, b, c]  - f(x) = d + a * exp(b * x + c)
 public:
-    ExponentialFunction() : coefficients({1.0,1.0}) {}
+    ExponentialFunction() : coefficients({0.0, 1.0, 1.0, 0.0}) {}
 
     double evaluate(double x) const override {
-        double a = coefficients.size() > 0 ? coefficients[0] : 1.0;
-        double b = coefficients.size() > 1 ? coefficients[1] : 1.0;
-        return a * exp(b * x);
+        double d = coefficients.size() > 0 ? coefficients[0] : 0.0;
+        double a = coefficients.size() > 1 ? coefficients[1] : 1.0;
+        double b = coefficients.size() > 2 ? coefficients[2] : 1.0;
+        double c = coefficients.size() > 3 ? coefficients[3] : 0.0;
+        return d + a * exp(b * x + c);
     }
+
     void setCoefficients(const QVector<double>& coeffs) override {
         coefficients = coeffs;
+        while (coefficients.size() < 4) {
+            coefficients.push_back(0.0);
+        }
     }
+
     QVector<double> getCoefficients() const override {
         return coefficients;
     }
-    QString getName() const override { return "Exponential"; }
+
+    QString getName() const override { return "ExponentialWithOffset"; }
 };
+
+
 
 // Логарифмические функции вида a * log_b(x)
 class LogarithmicFunction : public Function {

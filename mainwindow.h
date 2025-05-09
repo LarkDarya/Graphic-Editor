@@ -31,6 +31,9 @@ private:
     GraphicWidget* graphicWidget;
     PolynomialFunction polyFunc;
     TrigonometricFunction trigFunc;
+    ExponentialFunction expFunc;
+    LogarithmicFunction logFunc;
+    ModulusFunction modFunc;
     RangeController* rangeController = nullptr;
 
 };
