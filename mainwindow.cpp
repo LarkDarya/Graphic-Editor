@@ -32,8 +32,8 @@ void MainWindow::on_pushButton_4_clicked()
             padding: 0;
             margin-left: -5px;
         ">
-        Многочлен: a0 + a1*x + a2*x^2 + ...<br>
-        Тригонометрическая: a*sin(b*x)<br>
+        Многочлен: a0 + a1x + a2x^2 + ...<br>
+        Тригонометрическая: asin(bx+c)+d<br>
         Экспоненциальная: a*exp(b*x)<br>
         Логарифмическая: a*log_b(x)<br>
         Модуль: |x + a| + b
@@ -74,33 +74,6 @@ void MainWindow::on_pushButton_4_clicked()
     msgBox.exec();
 }
 
-void MainWindow::on_lineEdit_4_textEdited(const QString &arg1)
-{
-    if (ui->radioButton->isChecked()) {
-        // Парсим полиномиальную функцию из строки
-        QVector<double> coefs = PolynomialParser::parse(arg1);
-        polyFunc.setCoefficients(coefs);
-    }
-
-    if (ui->radioButton_2->isChecked()) {
-        // Получаем текущий текст из lineEdit_4 (аргумент arg1 в вашем слоте тоже можно использовать)
-        QString input = ui->lineEdit_4->text();
-
-        // Парсим строку через ваш парсер тригонометрических функций
-        TrigonometricFunction* parsedFunc = TrigonometricParser::parse(input);
-
-        if (parsedFunc) {
-            // Устанавливаем тип и коэффициенты из результата парсинга
-            trigFunc.setType(parsedFunc->getType());
-            trigFunc.setCoefficients(parsedFunc->getCoefficients());
-
-            delete parsedFunc; // освобождаем память
-        }
-
-    }
-
-}
-
 void MainWindow::on_pushButton_clicked()
 {
     // Проверяем диапазон
@@ -131,6 +104,8 @@ void MainWindow::on_pushButton_clicked()
     }
 
     rangeController->setRange(xMin, xMax, yMin, yMax);
+
+    QColor color1 = QColor("#1E2A78");
 
     // Создаем и добавляем первый график
     if (ui->radioButton->isChecked()) {
@@ -171,6 +146,8 @@ void MainWindow::on_pushButton_clicked()
             Function* newFunc = new LogarithmicFunction();
             newFunc->setCoefficients(parsedFunc->getCoefficients());
             ui->graphicWidget->setMainFunction(newFunc, color1);
+            ui->graphicWidget->setVisible(true);
+
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить логарифмическую функцию");
@@ -192,34 +169,13 @@ void MainWindow::on_pushButton_clicked()
 
 void MainWindow::on_pushButton_6_clicked()
 {
-    // Проверяем диапазон
-    double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
-    bool okX = false, okY = false;
 
-    double x = ui->lineEdit->text().toDouble(&okX);
-    if (okX) {
-        xMin = -x;
-        xMax = x;
-    }
-
-    double y = ui->lineEdit_2->text().toDouble(&okY);
-    if (okY) {
-        yMin = -y;
-        yMax = y;
-    }
-
-    if (!(okX && okY)) {
-        QMessageBox::warning(this, "Ошибка", "Некорректный ввод диапазона осей");
+    if (ui->graphicWidget->functionsCount() == 0) {
+        QMessageBox::warning(this, "Ошибка", "Сначала постройте основной график!");
         return;
     }
 
-    if (!rangeController) {
-        rangeController = new RangeController(this);
-        connect(rangeController, &RangeController::rangeChanged,
-                ui->graphicWidget, &::GraphicWidget::setRange);
-    }
-
-    rangeController->setRange(xMin, xMax, yMin, yMax);
+    QColor color2 = QColor("#FF2E4C");
 
     // Создаем и добавляем второй график
     if (ui->radioButton->isChecked()) {

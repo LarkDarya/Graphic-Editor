@@ -5,7 +5,7 @@
 #include "qcustomplot.h"
 #include "Function.h"
 
-class GraphicWidget : public QWidget
+    class GraphicWidget : public QWidget
 {
     Q_OBJECT
 public:
@@ -36,13 +36,17 @@ public:
 
     }
 
+    int functionsCount() const {
+        return m_functions.size();
+    }
+
     ~GraphicWidget()
     {
         clearFunctions();
     }
 
     // Добавить функцию
-    void addFunction(Function* func, const QColor& color = Qt::blue)
+    void addFunction(Function* func, const QColor& color = QColor("#1E2A78"))
     {
         // Создаем новый график (QCPGraph)
         QCPGraph* graph = m_plot->addGraph();
@@ -82,7 +86,7 @@ public:
     }
 
     // Установка основного графика — заменяем первый график
-    void setMainFunction(Function* func, const QColor& color = Qt::blue)
+    void setMainFunction(Function* func, const QColor& color = QColor("#1E2A78"))
     {
         if (!m_functions.isEmpty())
         {
@@ -117,7 +121,7 @@ public:
     }
 
     // Установка второго графика (вторичной функции)
-    void setSecondaryFunction(Function* func, const QColor& color = Qt::red)
+    void setSecondaryFunction(Function* func, const QColor& color = QColor("#FF2E4C"))
     {
         if (m_functions.size() > 1
             )
@@ -233,4 +237,3 @@ private:
 };
 
 #endif // GRAPHICWIDGET_H
-

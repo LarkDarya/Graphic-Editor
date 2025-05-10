@@ -278,60 +278,74 @@ private:
 };
 
 // Парсер для модульных функций
+// Простая реализация, разбивающая строку на части
+
 class ModulusParser {
 public:
     static ModulusFunction* parse(const QString& input) {
         QString str = input.simplified().replace(" ", "");
 
-        // Общий шаблон: d + c*|a*x + b|
-        QRegularExpression re(R"(^([+-]?\d*\.?\d*)\+?([+-]?\d*\.?\d*)\*?\|([+-]?\d*\.?\d*)\*?x([+-]\d+\.?\d*)?\|$)");
-        QRegularExpressionMatch match = re.match(str);
+        // Сначала ищем смещение по y (d) в конце вида + или - число
+        QRegularExpression dExpr(R"(([+-]\d+(\.\d+)?)$)");
+        QRegularExpressionMatch dMatch = dExpr.match(str);
 
-        if (!match.hasMatch()) {
-            // Попробуем вариант без смещения d: c*|a*x + b|
-            re.setPattern(R"(^([+-]?\d*\.?\d*)\*?\|([+-]?\d*\.?\d*)\*?x([+-]\d+\.?\d*)?\|$)");
-            match = re.match(str);
-
-            if (!match.hasMatch()) {
-                // Попробуем простые случаи
-                if (str == "|x|") {
-                    ModulusFunction* func = new ModulusFunction();
-                    func->setCoefficients({0.0, 0.0, 1.0, 1.0});
-                    return func;
-                }
-                else if (str == "|-x|") {
-                    ModulusFunction* func = new ModulusFunction();
-                    func->setCoefficients({0.0, 0.0, -1.0, 1.0});
-                    return func;
-                }
-                else if (str == "-|x|") {
-                    ModulusFunction* func = new ModulusFunction();
-                    func->setCoefficients({0.0, 0.0, 1.0, -1.0});
-                    return func;
-                }
-                return nullptr;
-            }
-
-            // Обработка c*|a*x + b|
-            double c = match.captured(1).isEmpty() ? 1.0 : match.captured(1).toDouble();
-            double a = match.captured(2).isEmpty() ? 1.0 : match.captured(2).toDouble();
-            double b = match.captured(3).isEmpty() ? 0.0 : match.captured(3).toDouble();
-
-            ModulusFunction* func = new ModulusFunction();
-            func->setCoefficients({b, 0.0, a, c});
-            return func;
+        double d = 0.0;
+        if (dMatch.hasMatch()) {
+            QString dStr = dMatch.captured(1);
+            d = dStr.toDouble();
+            str.chop(dStr.length()); // Убираем смещение d с конца
         }
 
-        // Обработка полной формы: d + c*|a*x + b|
-        double d = match.captured(1).isEmpty() ? 0.0 : match.captured(1).toDouble();
-        double c = match.captured(2).isEmpty() ? 1.0 : match.captured(2).toDouble();
-        double a = match.captured(3).isEmpty() ? 1.0 : match.captured(3).toDouble();
-        double b = match.captured(4).isEmpty() ? 0.0 : match.captured(4).toDouble();
+        // Теперь форматы типа "2*|x|", "|x|", "-|x|", "3*|2*x+1|"
+
+        // Парсим множитель c перед модулем
+        double c = 1.0;
+        QRegularExpression cExpr(R"(^([+-]?\d*\.?\d*)\*?\|)");
+        QRegularExpressionMatch cMatch = cExpr.match(str);
+        if (cMatch.hasMatch()) {
+            QString cStr = cMatch.captured(1);
+            if (!cStr.isEmpty() && cStr != "+" && cStr != "-")
+                c = cStr.toDouble();
+            else if (cStr == "-")
+                c = -1.0;
+            // удаляем из строки множитель c и начальный '|'
+            int pos = cMatch.capturedLength();
+            str = str.mid(pos - 1); // сохранить '|...' (сдвинем обратно на 1)
+        }
+
+        // Теперь внутри модуля ожидается что-то типа "a*x+b" или просто "x"
+        QRegularExpression insideExpr(R"(\|([+-]?\d*\.?\d*)\*?x([+-]\d+(\.\d+)?)?\|)");
+        QRegularExpressionMatch insideMatch = insideExpr.match(str);
+        double a = 1.0;
+        double b = 0.0;
+        if (insideMatch.hasMatch()) {
+            QString aStr = insideMatch.captured(1);
+            QString bStr = insideMatch.captured(2);
+
+            if (!aStr.isEmpty() && aStr != "+" && aStr != "-")
+                a = aStr.toDouble();
+            else if (aStr == "-")
+                a = -1.0;
+
+            if (!bStr.isEmpty())
+                b = bStr.toDouble();
+        }
+        else {
+            // Может быть просто |x|
+            if (str == "|x|")
+                a = 1.0, b = 0.0;
+            else if (str == "|-x|")
+                a = -1.0, b = 0.0;
+            else
+                return nullptr; // не распознан формат
+        }
 
         ModulusFunction* func = new ModulusFunction();
         func->setCoefficients({b, d, a, c});
         return func;
     }
 };
+
+
 
 #endif // PARSER_H

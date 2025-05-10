@@ -131,11 +131,11 @@ public:
 
 class LogarithmicFunction : public Function {
     QVector<double> coefficients; // [a, base, c, d, e]
+    const double NEAR_ZERO_THRESHOLD = 1e-10; // Порог для определения близости к 0
 public:
     LogarithmicFunction() : coefficients({1.0, 10.0, 1.0, 0.0, 0.0}) {}
 
     double evaluate(double x) const override {
-        // Получаем все коэффициенты
         double a = coefficients.value(0, 1.0);
         double base = coefficients.value(1, 10.0);
         double c = coefficients.value(2, 1.0);
@@ -144,10 +144,15 @@ public:
 
         // Вычисляем аргумент логарифма
         double arg = c * x + e;
-        if (arg <= 0) return 0; // Логарифм не определен
 
-        // Вычисляем значение
-        return d + a * (log(arg) / log(base));
+        // Обработка случаев, когда аргумент приближается к 0
+        if (std::abs(arg) < NEAR_ZERO_THRESHOLD) {
+            // Определяем направление бесконечности в зависимости от знака
+            return (arg >= 0 && a > 0) ? -10000
+                              : 10000;
+        }
+
+        return d + a * (std::log(arg) / std::log(base));
     }
 
     void setCoefficients(const QVector<double>& coeffs) override {
@@ -168,6 +173,7 @@ public:
         return "Logarithmic";
     }
 };
+
 
 // Модульная функции вида |x + a| + b
 class ModulusFunction : public Function {
