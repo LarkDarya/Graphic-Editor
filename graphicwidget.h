@@ -2,13 +2,7 @@
 #define GRAPHICWIDGET_H
 
 #include <QWidget>
-#include <QPainter>
-#include <QPaintEvent>
-#include <QPainterPath>
-#include <QVector>
-#include <QPen>
-#include <QDebug>
-#include <cmath>
+#include "qcustomplot.h"
 #include "Function.h"
 
 class GraphicWidget : public QWidget
@@ -16,69 +10,162 @@ class GraphicWidget : public QWidget
     Q_OBJECT
 public:
     explicit GraphicWidget(QWidget *parent = nullptr)
-        : QWidget(parent), m_xMin(-10), m_xMax(10), m_yMin(-10), m_yMax(10)
+        : QWidget(parent)
     {
-        setMinimumSize(600, 400);
-        setAutoFillBackground(true);
-        m_background = QPixmap(size());
+        // Создаем QCustomPlot и настройваем layout
+        m_plot = new QCustomPlot(this);
+        QVBoxLayout* layout = new QVBoxLayout(this);
+        layout->addWidget(m_plot);
+        layout->setContentsMargins(0,0,0,0);
+        setLayout(layout);
+
+        m_plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+
+        // Устанавливаем начальный диапазон для осей
+        m_plot->xAxis->setRange(-10, 10);
+        m_plot->yAxis->setRange(-10, 10);
+
+        // Сетка
+        m_plot->xAxis->grid()->setVisible(true);
+        m_plot->yAxis->grid()->setVisible(true);
+
+        connect(m_plot->xAxis, static_cast<void (QCPAxis::*)(const QCPRange &)>(&QCPAxis::rangeChanged),
+                this, &GraphicWidget::onRangeChanged);
+        connect(m_plot->yAxis, static_cast<void (QCPAxis::*)(const QCPRange &)>(&QCPAxis::rangeChanged),
+                this, &GraphicWidget::onRangeChanged);
+
     }
 
-    // Добавление функции для отображения
+    ~GraphicWidget()
+    {
+        clearFunctions();
+    }
+
+    // Добавить функцию
     void addFunction(Function* func, const QColor& color = Qt::blue)
     {
-        m_functions.append({func, color});
-        updateBackground();
-        update();
+        // Создаем новый график (QCPGraph)
+        QCPGraph* graph = m_plot->addGraph();
+        graph->setPen(QPen(color));
+
+        // Заполняем точками графика
+        QVector<double> xData, yData;
+
+        const int pointsCount = 1000; // количество точек
+        double xMin = m_plot->xAxis->range().lower;
+        double xMax = m_plot->xAxis->range().upper;
+        double step = (xMax - xMin) / pointsCount;
+
+        for (int i = 0; i <= pointsCount; ++i)
+        {
+            double x = xMin + i * step;
+            xData.append(x);
+            yData.append(func->evaluate(x)); // Предполагается, что у Function есть метод evaluate
+        }
+
+        graph->setData(xData, yData);
+
+        m_functions.append({func, graph});
+
+        m_plot->replot();
     }
 
-    // Очистка всех функций
+    // Очистить все функции
     void clearFunctions()
     {
         for (auto& funcInfo : m_functions) {
             delete funcInfo.function;
+            m_plot->removeGraph(funcInfo.graph);
         }
         m_functions.clear();
-        update();
+        m_plot->replot();
     }
 
-    void setMainFunction(Function* func, const QColor& color) {
-        if (m_functions.size() > 0) {
-            delete m_functions[0].function;
-            m_functions[0] = {func, color};
-        } else {
-            m_functions.append({func, color});
+    // Установка основного графика — заменяем первый график
+    void setMainFunction(Function* func, const QColor& color = Qt::blue)
+    {
+        if (!m_functions.isEmpty())
+        {
+            // Заменяем данные первого графика
+            FunctionInfo& mainInfo = m_functions[0];
+
+            delete mainInfo.function;
+            mainInfo.function = func;
+
+            QVector<double> xData, yData;
+
+            const int pointsCount = 1000;
+            double xMin = m_plot->xAxis->range().lower;
+            double xMax = m_plot->xAxis->range().upper;
+            double step = (xMax - xMin) / pointsCount;
+
+            for (int i = 0; i <= pointsCount; ++i)
+            {
+                double x = xMin + i * step;
+                xData.append(x);
+                yData.append(func->evaluate(x));
+            }
+
+            mainInfo.graph->setPen(QPen(color));
+            mainInfo.graph->setData(xData, yData);
         }
-        update();
-    }
-
-    void setSecondaryFunction(Function* func, const QColor& color) {
-        if (m_functions.size() > 1) {
-            delete m_functions[1].function;
-            m_functions[1] = {func, color};
-        } else if (m_functions.size() == 1) {
-            m_functions.append({func, color});
-        } else {
-            // Если нет основного графика, добавляем как основной
-            m_functions.append({func, color});
+        else
+        {
+            addFunction(func, color);
         }
-        update();
+        m_plot->replot();
     }
 
-    // Установка диапазонов
+    // Установка второго графика (вторичной функции)
+    void setSecondaryFunction(Function* func, const QColor& color = Qt::red)
+    {
+        if (m_functions.size() > 1
+            )
+        {
+            FunctionInfo& secondInfo = m_functions[1];
+
+            delete secondInfo.function;
+            secondInfo.function = func;
+
+            QVector<double> xData, yData;
+
+            const int pointsCount = 1000;
+            double xMin = m_plot->xAxis->range().lower;
+            double xMax = m_plot->xAxis->range().upper;
+            double step = (xMax - xMin) / pointsCount;
+
+            for (int i = 0; i <= pointsCount; ++i)
+            {
+                double x = xMin + i * step;
+                xData.append(x);
+                yData.append(func->evaluate(x));
+            }
+
+            secondInfo.graph->setPen(QPen(color));
+            secondInfo.graph->setData(xData, yData);
+        }
+        else if (m_functions.size() == 1)
+        {
+            addFunction(func, color);
+        }
+        else
+        {
+            addFunction(func, color);
+        }
+        m_plot->replot();
+    }
+
+    // Установка диапазонов осей
     void setXRange(double xmin, double xmax)
     {
-        m_xMin = xmin;
-        m_xMax = xmax;
-        updateBackground();
-        update();
+        m_plot->xAxis->setRange(xmin, xmax);
+        updateAllFunctions();
     }
 
     void setYRange(double ymin, double ymax)
     {
-        m_yMin = ymin;
-        m_yMax = ymax;
-        updateBackground();
-        update();
+        m_plot->yAxis->setRange(ymin, ymax);
+        updateAllFunctions();
     }
 
     void setRange(double xmin, double xmax, double ymin, double ymax)
@@ -87,178 +174,63 @@ public:
         setYRange(ymin, ymax);
     }
 
-    Function* getMainFunction() const {
-        if (!m_functions.isEmpty()) {
-            return m_functions[0].function;
-        }
-        return nullptr;
-    }
-
-
-protected:
-    void paintEvent(QPaintEvent* event) override
-    {
-        Q_UNUSED(event);
-        QPainter painter(this);
-
-        // Рисуем сохраненный фон
-        painter.drawPixmap(0, 0, m_background);
-
-        // Рисуем текущие функции поверх
-        drawFunctions(painter);
-    }
-
-    void resizeEvent(QResizeEvent* event) override
-    {
-        QWidget::resizeEvent(event);
-        m_background = QPixmap(size());
-        updateBackground();
-    }
-
 private:
     struct FunctionInfo {
         Function* function;
-        QColor color;
+        QCPGraph* graph;
     };
-
     QVector<FunctionInfo> m_functions;
-    double m_xMin, m_xMax;
-    double m_yMin, m_yMax;
-    const int margin = 50; // увеличенные отступы
-    QPixmap m_background;
+    QCustomPlot* m_plot;
 
-
-    // Преобразование координат
-    int mapX(double x) const
+    void onRangeChanged(const QCPRange &newRange)
     {
-        double w = width() - 2 * margin;
-        return margin + static_cast<int>((x - m_xMin) / (m_xMax - m_xMin) * w);
-    }
+        Q_UNUSED(newRange);
 
-    int mapY(double y) const
-    {
-        double h = height() - 2 * margin;
-        return margin + static_cast<int>((m_yMax - y) / (m_yMax - m_yMin) * h);
-    }
+        // Для каждого графика пересчитать данные по новому диапазону оси x
+        const int pointsCount = 1000;
+        double xMin = m_plot->xAxis->range().lower;
+        double xMax = m_plot->xAxis->range().upper;
+        double step = (xMax - xMin) / pointsCount;
 
-    // Обновление фона (осей и сетки)
-    void updateBackground()
-    {
-        m_background.fill(Qt::white);
-        QPainter painter(&m_background);
-        painter.setRenderHint(QPainter::Antialiasing);
-
-        drawGrid(painter);
-        drawAxes(painter);
-
-        if (m_functions.isEmpty()) {
-            painter.setPen(Qt::black);
-            QFont font("Cambria", 12);
-            painter.setFont(font);
-            painter.drawText(rect(), Qt::AlignCenter, "Функция не задана");
-        }
-    }
-
-    // Рисование функций
-    void drawFunctions(QPainter& painter)
-    {
-        painter.setRenderHint(QPainter::Antialiasing);
-
-        for (const auto& funcInfo : m_functions) {
-            drawFunction(painter, funcInfo.function, funcInfo.color);
-        }
-    }
-
-    // Рисование одной функции
-    void drawFunction(QPainter& painter, Function* function, const QColor& color)
-    {
-        int w = width() - 2 * margin;
-        if (w <= 0) return;
-
-        QPainterPath path;
-        bool firstPoint = true;
-
-        // Увеличиваем количество точек для более плавного графика
-        int pointCount = w * 2;
-        for (int i = 0; i <= pointCount; ++i) {
-            double x = m_xMin + (m_xMax - m_xMin) * i / pointCount;
-            double y = function->evaluate(x);
-
-            if (y >= m_yMin && y <= m_yMax) {
-                QPoint p(mapX(x), mapY(y));
-                if (firstPoint) {
-                    path.moveTo(p);
-                    firstPoint = false;
-                } else {
-                    path.lineTo(p);
-                }
-            } else {
-                firstPoint = true;
+        for (auto& funcInfo : m_functions)
+        {
+            QVector<double> xData, yData;
+            for (int i = 0; i <= pointsCount; ++i)
+            {
+                double x = xMin + i * step;
+                xData.append(x);
+                yData.append(funcInfo.function->evaluate(x));
             }
+            funcInfo.graph->setData(xData, yData);
         }
 
-        painter.setPen(QPen(color, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        painter.drawPath(path);
+        m_plot->replot();
     }
 
-    // Рисование осей
-    void drawAxes(QPainter& painter)
+    void updateAllFunctions()
     {
-        painter.setPen(QPen(Qt::black, 2));
+        // При изменении диапазона обновляем все графики
+        for (auto& funcInfo : m_functions)
+        {
+            QVector<double> xData, yData;
 
-        // Ось X
-        int y0 = mapY(0);
-        painter.drawLine(margin, y0, width() - margin, y0);
+            const int pointsCount = 1000;
+            double xMin = m_plot->xAxis->range().lower;
+            double xMax = m_plot->xAxis->range().upper;
+            double step = (xMax - xMin) / pointsCount;
 
-        // Ось Y
-        int x0 = mapX(0);
-        painter.drawLine(x0, margin, x0, height() - margin);
+            for (int i = 0; i <= pointsCount; ++i)
+            {
+                double x = xMin + i * step;
+                xData.append(x);
+                yData.append(funcInfo.function->evaluate(x));
+            }
 
-        // Подписи осей
-        painter.setPen(Qt::black);
-        QFont font("Cambria", 10);
-        painter.setFont(font);
-
-        // Отметки по X
-        int n = 10;
-        for (int i = 0; i <= n; ++i) {
-            double xVal = m_xMin + i * (m_xMax - m_xMin) / n;
-            int xPos = mapX(xVal);
-            painter.drawLine(xPos, y0 - 5, xPos, y0 + 5);
-            painter.drawText(xPos - 15, y0 + 20, QString::number(xVal, 'f', 1));
+            funcInfo.graph->setData(xData, yData);
         }
-
-        // Отметки по Y
-        for (int i = 0; i <= n; ++i) {
-            double yVal = m_yMin + i * (m_yMax - m_yMin) / n;
-            int yPos = mapY(yVal);
-            painter.drawLine(x0 - 5, yPos, x0 + 5, yPos);
-            painter.drawText(x0 - 35, yPos + 5, QString::number(yVal, 'f', 1));
-        }
+        m_plot->replot();
     }
-
-    // Рисование сетки
-    void drawGrid(QPainter& painter)
-    {
-        painter.setPen(QPen(QColor(220, 220, 220), 1));
-
-        int n = 10;
-        // Вертикальные линии
-        for (int i = 0; i <= n; ++i) {
-            double xVal = m_xMin + i * (m_xMax - m_xMin) / n;
-            int xPos = mapX(xVal);
-            painter.drawLine(xPos, margin, xPos, height() - margin);
-        }
-
-        // Горизонтальные линии
-        for (int i = 0; i <= n; ++i) {
-            double yVal = m_yMin + i * (m_yMax - m_yMin) / n;
-            int yPos = mapY(yVal);
-            painter.drawLine(margin, yPos, width() - margin, yPos);
-        }
-    }
-
-
 };
 
 #endif // GRAPHICWIDGET_H
+

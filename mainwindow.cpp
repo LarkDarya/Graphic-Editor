@@ -9,7 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowIcon(QIcon("F:/Даша/Репозиторий/GraphicEditor/Иконка.png"));
+    this->setWindowIcon(QIcon("F:/Dasha/Repos/GraphicEditor/Иконка.png"));
 }
 
 MainWindow::~MainWindow()
@@ -127,7 +127,7 @@ void MainWindow::on_pushButton_clicked()
     if (!rangeController) {
         rangeController = new RangeController(this);
         connect(rangeController, &RangeController::rangeChanged,
-                ui->graphicWidget, &GraphicWidget::setRange);
+                ui->graphicWidget, &::GraphicWidget::setRange);
     }
 
     rangeController->setRange(xMin, xMax, yMin, yMax);
@@ -192,6 +192,35 @@ void MainWindow::on_pushButton_clicked()
 
 void MainWindow::on_pushButton_6_clicked()
 {
+    // Проверяем диапазон
+    double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
+    bool okX = false, okY = false;
+
+    double x = ui->lineEdit->text().toDouble(&okX);
+    if (okX) {
+        xMin = -x;
+        xMax = x;
+    }
+
+    double y = ui->lineEdit_2->text().toDouble(&okY);
+    if (okY) {
+        yMin = -y;
+        yMax = y;
+    }
+
+    if (!(okX && okY)) {
+        QMessageBox::warning(this, "Ошибка", "Некорректный ввод диапазона осей");
+        return;
+    }
+
+    if (!rangeController) {
+        rangeController = new RangeController(this);
+        connect(rangeController, &RangeController::rangeChanged,
+                ui->graphicWidget, &::GraphicWidget::setRange);
+    }
+
+    rangeController->setRange(xMin, xMax, yMin, yMax);
+
     // Создаем и добавляем второй график
     if (ui->radioButton->isChecked()) {
         QString input = ui->lineEdit_4->text();

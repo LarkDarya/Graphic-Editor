@@ -167,99 +167,49 @@ public:
         // Обработка дробей в выражении
         str = replaceFractions(str);
 
-        // Определяем тип логарифма и основание
-        struct LogInfo {
-            QString pattern;
-            double defaultBase;
-        };
+        // Основной шаблон для всех случаев
+        QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?\+?)?([+-]?(?:\d+\.?\d*|\.\d+)?)\*?(log_(\d+\.?\d*|\(\d+/\d+\))\(([^)]+)\)|ln\(([^)]+)\)|log\(([^)]+)\))([+-]\d+\.?\d*)?$)");
+        QRegularExpressionMatch match = re.match(str);
 
-        QVector<LogInfo> logTypes = {
-            {"log_", 10.0}, // Основание будет извлечено
-            {"ln(", M_E},
-            {"log(", 10.0}
-        };
-
-        QString matchedType;
-        double base = 10.0;
-        QString innerExpr;
-
-        // Ищем совпадение с типами логарифмов
-        for (const auto& lt : logTypes) {
-            if (str.contains(lt.pattern)) {
-                matchedType = lt.pattern;
-                base = lt.defaultBase;
-
-                // Для log_ извлекаем основание
-                if (lt.pattern == "log_") {
-                    QRegularExpression baseRe(R"(log_(\d+\.?\d*|\(\d+/\d+\))\()");
-                    QRegularExpressionMatch baseMatch = baseRe.match(str);
-                    if (baseMatch.hasMatch()) {
-                        QString baseStr = baseMatch.captured(1);
-                        if (baseStr.contains('/')) {
-                            base = evalFraction(baseStr);
-                        } else {
-                            base = baseStr.toDouble();
-                        }
-                    }
-                }
-
-                // Извлекаем внутреннее выражение
-                int start = str.indexOf(matchedType) + matchedType.length();
-                int end = str.indexOf(")", start);
-                if (end == -1) return nullptr;
-                innerExpr = str.mid(start, end - start);
-                break;
-            }
+        if (!match.hasMatch()) {
+            return nullptr;
         }
-
-        if (matchedType.isEmpty()) return nullptr;
 
         // Парсим коэффициенты
-        double a = 1.0, c = 1.0, e = 0.0, d = 0.0;
+        double d = 0.0, a = 1.0, base = 10.0, c = 1.0, e = 0.0;
 
-        // Парсим выражение перед логарифмом (d + a*)
-        QString prefix = str.left(str.indexOf(matchedType));
-        if (!prefix.isEmpty()) {
-            // Обработка дробей и сложных выражений
-            if (prefix.contains('/') || prefix.contains('+') || prefix.contains('-')) {
-                QRegularExpression prefixRe(R"(([^+]*)\+?([^+]*)\*?)");
-                QRegularExpressionMatch prefixMatch = prefixRe.match(prefix);
-
-                if (prefixMatch.hasMatch()) {
-                    QString dStr = prefixMatch.captured(1);
-                    QString aStr = prefixMatch.captured(2);
-
-                    if (!dStr.isEmpty()) d = evalExpression(dStr);
-                    if (!aStr.isEmpty()) a = evalExpression(aStr);
-                }
-            } else {
-                // Простые случаи
-                if (prefix == "-") a = -1.0;
-                else if (prefix == "+") a = 1.0;
-                else if (prefix.endsWith("*")) a = evalExpression(prefix.left(prefix.length()-1));
-                else a = evalExpression(prefix);
-            }
+        // Обработка d (свободного члена)
+        if (!match.captured(1).isEmpty()) {
+            QString dStr = match.captured(1);
+            if (dStr.endsWith('+')) dStr.chop(1);
+            if (!dStr.isEmpty()) d = dStr.toDouble();
         }
 
-        // Парсим внутреннее выражение (c*x + e)
-        if (!innerExpr.isEmpty()) {
-            innerExpr = innerExpr.replace(" ", "");
+        // Обработка a (коэффициента перед логарифмом)
+        if (!match.captured(2).isEmpty()) {
+            QString aStr = match.captured(2);
+            a = parseCoefficient(aStr);
+        } else if (str.startsWith('-')) {
+            a = -1.0;
+        }
 
-            if (innerExpr.contains("x")) {
-                QRegularExpression innerRe(R"(([^x]*)x([^+]*)");
-                QRegularExpressionMatch innerMatch = innerRe.match(innerExpr);
+        // Определение типа логарифма и его основания
+        if (!match.captured(4).isEmpty()) { // log_b(...)
+            base = evalExpression(match.captured(4));
+            parseInnerExpression(match.captured(5), c, e);
+        }
+        else if (!match.captured(6).isEmpty()) { // ln(...)
+            base = M_E;
+            parseInnerExpression(match.captured(6), c, e);
+        }
+        else if (!match.captured(7).isEmpty()) { // log(...)
+            base = 10.0;
+            parseInnerExpression(match.captured(7), c, e);
+        }
 
-                if (innerMatch.hasMatch()) {
-                    QString cStr = innerMatch.captured(1);
-                    QString eStr = innerMatch.captured(2);
-
-                    if (!cStr.isEmpty()) c = evalExpression(cStr.isEmpty() ? "1" : cStr);
-                    if (!eStr.isEmpty()) e = evalExpression(eStr);
-                }
-            } else {
-                e = evalExpression(innerExpr);
-                c = 0.0;
-            }
+        // Обработка дополнительного слагаемого (e)
+        if (!match.captured(8).isEmpty()) {
+            e += match.captured(8).toDouble();
         }
 
         // Создаем и возвращаем функцию
@@ -268,7 +218,34 @@ public:
         return func;
     }
 
+
 private:
+    static double parseCoefficient(const QString& coeff) {
+        if (coeff == "+") return 1.0;
+        if (coeff == "-") return -1.0;
+        return coeff.toDouble();
+    }
+
+
+    static void parseInnerExpression(const QString& expr, double& c, double& e) {
+        if (expr.isEmpty()) return;
+
+        QRegularExpression innerRe(R"(([+-]?\d*\.?\d*)\*?x([+-]\d+\.?\d*)?)");
+        QRegularExpressionMatch innerMatch = innerRe.match(expr);
+
+        if (innerMatch.hasMatch()) {
+            QString cStr = innerMatch.captured(1);
+            QString eStr = innerMatch.captured(2);
+
+            if (!cStr.isEmpty()) c = cStr.isEmpty() ? 1.0 : cStr.toDouble();
+            if (!eStr.isEmpty()) e = eStr.toDouble();
+        } else {
+            // Если нет x, то это просто константа e
+            e = expr.toDouble();
+            c = 0.0;
+        }
+    }
+
     static QString replaceFractions(const QString& expr) {
         QString result = expr;
         QRegularExpression fracRe(R"(\((\d+)/(\d+)\))");
@@ -286,21 +263,16 @@ private:
         return result;
     }
 
-    static double evalFraction(const QString& frac) {
-        QStringList parts = frac.split('/');
-        if (parts.size() == 2) {
-            double num = parts[0].toDouble();
-            double den = parts[1].toDouble();
-            return den != 0 ? num / den : 1.0;
-        }
-        return 1.0;
-    }
-
     static double evalExpression(const QString& expr) {
         if (expr.isEmpty()) return 1.0;
-        if (expr == "-") return -1.0;
-        if (expr == "+") return 1.0;
-        if (expr.contains('/')) return evalFraction(expr);
+        if (expr.contains('/')) {
+            QStringList parts = expr.split('/');
+            if (parts.size() == 2) {
+                double num = parts[0].toDouble();
+                double den = parts[1].toDouble();
+                return den != 0 ? num / den : 1.0;
+            }
+        }
         return expr.toDouble();
     }
 };
