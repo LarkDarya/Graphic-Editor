@@ -1,7 +1,8 @@
 #include "mainwindow.h"
-#include "QMessageBox.h"
 #include "ui_mainwindow.h"
 #include <QColor>
+#include <QFileDialog>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -257,5 +258,18 @@ void MainWindow::on_pushButton_2_clicked()
     // Сбрасываем указатели на функции
     currentFunc1 = nullptr;
     currentFunc2 = nullptr;
+}
+
+
+void MainWindow::on_pushButton_3_clicked()
+{
+    // Получаем изображение из graphicWidget
+    QPixmap pixmap = ui->graphicWidget->grab();
+
+    // Сохраняем изображение в файл
+    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить изображение", "", "PNG Files (*.png);;All Files (*)");
+    if (!fileName.isEmpty()) {
+        pixmap.save(fileName);
+    }
 }
 

@@ -87,6 +87,14 @@ public:
         setYRange(ymin, ymax);
     }
 
+    Function* getMainFunction() const {
+        if (!m_functions.isEmpty()) {
+            return m_functions[0].function;
+        }
+        return nullptr;
+    }
+
+
 protected:
     void paintEvent(QPaintEvent* event) override
     {
@@ -249,6 +257,8 @@ private:
             painter.drawLine(margin, yPos, width() - margin, yPos);
         }
     }
+
+
 };
 
 #endif // GRAPHICWIDGET_H
