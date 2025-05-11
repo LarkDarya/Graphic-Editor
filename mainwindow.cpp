@@ -33,10 +33,10 @@ void MainWindow::on_pushButton_4_clicked()
             margin-left: -5px;
         ">
         Многочлен: a0 + a1x + a2x^2 + ...<br>
-        Тригонометрическая: asin(bx+c)+d<br>
-        Экспоненциальная: a*exp(b*x)<br>
-        Логарифмическая: a*log_b(x)<br>
-        Модуль: |x + a| + b
+        Тригонометрическая: a*sin(b*x+c)+d<br>
+        Экспоненциальная: a*exp(b*x+c)+d<br>
+        Логарифмическая: a*log_b(c*x+d)+e<br>
+        Модуль: c*|a*x+b|+d
         </div>
     )";
 
@@ -105,65 +105,81 @@ void MainWindow::on_pushButton_clicked()
 
     rangeController->setRange(xMin, xMax, yMin, yMax);
 
-    QColor color1 = QColor("#1E2A78");
-
     // Создаем и добавляем первый график
-    if (ui->radioButton->isChecked()) {
-        QString input = ui->lineEdit_4->text();
+    if (!(okX && okY)) {
+        QMessageBox::warning(this, "Ошибка", "Некорректный ввод диапазона осей");
+        return;
+    }
+
+    if (!rangeController) {
+        rangeController = new RangeController(this);
+        connect(rangeController, &RangeController::rangeChanged,
+                ui->graphicWidget, &::GraphicWidget::setRange);
+    }
+
+    rangeController->setRange(xMin, xMax, yMin, yMax);
+
+    QString input = ui->lineEdit_4->text().trimmed();
+
+    if (input.isEmpty()) {
+        QMessageBox::warning(this, "Ошибка", "Пустой ввод функции");
+        return;
+    }
+
+    if (ui->radioButton->isChecked()) { // Многочлен
         QVector<double> coeffs = PolynomialParser::parse(input);
-        Function* newFunc = new PolynomialFunction();
+        if (coeffs.isEmpty()) {
+            QMessageBox::warning(this, "Ошибка", "Некорректный ввод многочлена");
+            return;
+        }
+        PolynomialFunction* newFunc = new PolynomialFunction();
         newFunc->setCoefficients(coeffs);
         ui->graphicWidget->setMainFunction(newFunc, color1);
     }
-    else if (ui->radioButton_2->isChecked()) {
-        QString input = ui->lineEdit_4->text();
+    else if (ui->radioButton_2->isChecked()) { // Тригонометрия
         TrigonometricFunction* parsedFunc = TrigonometricParser::parse(input);
-        if (parsedFunc) {
-            Function* newFunc = new TrigonometricFunction(parsedFunc->getType());
-            newFunc->setCoefficients(parsedFunc->getCoefficients());
-            ui->graphicWidget->setMainFunction(newFunc, color1);
-            delete parsedFunc;
-        } else {
-            QMessageBox::warning(this, "Ошибка", "Не удалось распарсить тригонометрическую функцию");
+        if (!parsedFunc) {
+            QMessageBox::warning(this, "Ошибка", "Некорректный ввод тригонометрической функции");
+            return;
         }
+        Function* newFunc = new TrigonometricFunction(parsedFunc->getType());
+        newFunc->setCoefficients(parsedFunc->getCoefficients());
+        ui->graphicWidget->setMainFunction(newFunc, color1);
+        delete parsedFunc;
     }
-    else if (ui->radioButton_3->isChecked()) {
-        QString input = ui->lineEdit_4->text();
+    else if (ui->radioButton_3->isChecked()) { // Экспонента
         ExponentialFunction* parsedFunc = ExponentialParser::parse(input);
-        if (parsedFunc) {
-            Function* newFunc = new ExponentialFunction();
-            newFunc->setCoefficients(parsedFunc->getCoefficients());
-            ui->graphicWidget->setMainFunction(newFunc, color1);
-            delete parsedFunc;
-        } else {
-            QMessageBox::warning(this, "Ошибка", "Не удалось распарсить функцию экспоненты");
+        if (!parsedFunc) {
+            QMessageBox::warning(this, "Ошибка", "Некорректный ввод экспоненциальной функции");
+            return;
         }
+        Function* newFunc = new ExponentialFunction();
+        newFunc->setCoefficients(parsedFunc->getCoefficients());
+        ui->graphicWidget->setMainFunction(newFunc, color1);
+        delete parsedFunc;
     }
-    else if (ui->radioButton_4->isChecked()) {
-        QString input = ui->lineEdit_4->text();
+    else if (ui->radioButton_4->isChecked()) { // Логарифмическая функция
         LogarithmicFunction* parsedFunc = LogarithmicParser::parse(input);
-        if (parsedFunc) {
-            Function* newFunc = new LogarithmicFunction();
-            newFunc->setCoefficients(parsedFunc->getCoefficients());
-            ui->graphicWidget->setMainFunction(newFunc, color1);
-            ui->graphicWidget->setVisible(true);
-
-            delete parsedFunc;
-        } else {
-            QMessageBox::warning(this, "Ошибка", "Не удалось распарсить логарифмическую функцию");
+        if (!parsedFunc) {
+            QMessageBox::warning(this, "Ошибка", "Некорректный ввод логарифмической функции");
+            return;
         }
+        Function* newFunc = new LogarithmicFunction();
+        newFunc->setCoefficients(parsedFunc->getCoefficients());
+        ui->graphicWidget->setMainFunction(newFunc, color1);
+        ui->graphicWidget->setVisible(true);
+        delete parsedFunc;
     }
-    else if (ui->radioButton_9->isChecked()) {
-        QString input = ui->lineEdit_4->text();
+    else if (ui->radioButton_9->isChecked()) { // Модульная функция
         ModulusFunction* parsedFunc = ModulusParser::parse(input);
-        if (parsedFunc) {
-            Function* newFunc = new ModulusFunction();
-            newFunc->setCoefficients(parsedFunc->getCoefficients());
-            ui->graphicWidget->setMainFunction(newFunc, color1);
-            delete parsedFunc;
-        } else {
-            QMessageBox::warning(this, "Ошибка", "Не удалось распарсить модульную функцию");
+        if (!parsedFunc) {
+            QMessageBox::warning(this, "Ошибка", "Некорректный ввод модульной функции");
+            return;
         }
+        Function* newFunc = new ModulusFunction();
+        newFunc->setCoefficients(parsedFunc->getCoefficients());
+        ui->graphicWidget->setMainFunction(newFunc, color1);
+        delete parsedFunc;
     }
 }
 
@@ -175,18 +191,54 @@ void MainWindow::on_pushButton_6_clicked()
         return;
     }
 
-    QColor color2 = QColor("#FF2E4C");
+    // Проверяем диапазон
+    double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
+    bool okX = false, okY = false;
 
-    // Создаем и добавляем второй график
+    double x = ui->lineEdit->text().toDouble(&okX);
+    if (okX) {
+        xMin = -x;
+        xMax = x;
+    }
+
+    double y = ui->lineEdit_2->text().toDouble(&okY);
+    if (okY) {
+        yMin = -y;
+        yMax = y;
+    }
+
+    if (!(okX && okY)) {
+        QMessageBox::warning(this, "Ошибка", "Некорректный ввод диапазона осей");
+        return;
+    }
+
+    if (!rangeController) {
+        rangeController = new RangeController(this);
+        connect(rangeController, &RangeController::rangeChanged,
+                ui->graphicWidget, &::GraphicWidget::setRange);
+    }
+
+    rangeController->setRange(xMin, xMax, yMin, yMax);
+
+// Создаем и добавляем второй график
+    QString input = ui->lineEdit_4->text().trimmed();
+
+    if (input.isEmpty()) {
+        QMessageBox::warning(this, "Ошибка", "Пустой ввод функции");
+        return;
+    }
+
     if (ui->radioButton->isChecked()) {
-        QString input = ui->lineEdit_4->text();
         QVector<double> coeffs = PolynomialParser::parse(input);
+        if (coeffs.isEmpty()) {
+            QMessageBox::warning(this, "Ошибка", "Некорректный ввод многочлена");
+            return;
+        }
         Function* newFunc = new PolynomialFunction();
         newFunc->setCoefficients(coeffs);
         ui->graphicWidget->setSecondaryFunction(newFunc, color2);
     }
     else if (ui->radioButton_2->isChecked()) {
-        QString input = ui->lineEdit_4->text();
         TrigonometricFunction* parsedFunc = TrigonometricParser::parse(input);
         if (parsedFunc) {
             Function* newFunc = new TrigonometricFunction(parsedFunc->getType());
@@ -195,10 +247,10 @@ void MainWindow::on_pushButton_6_clicked()
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить тригонометрическую функцию");
+            return;
         }
     }
     else if (ui->radioButton_3->isChecked()) {
-        QString input = ui->lineEdit_4->text();
         ExponentialFunction* parsedFunc = ExponentialParser::parse(input);
         if (parsedFunc) {
             Function* newFunc = new ExponentialFunction();
@@ -207,10 +259,10 @@ void MainWindow::on_pushButton_6_clicked()
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить функцию экспоненты");
+            return;
         }
     }
     else if (ui->radioButton_4->isChecked()) {
-        QString input = ui->lineEdit_4->text();
         LogarithmicFunction* parsedFunc = LogarithmicParser::parse(input);
         if (parsedFunc) {
             Function* newFunc = new LogarithmicFunction();
@@ -219,10 +271,10 @@ void MainWindow::on_pushButton_6_clicked()
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить логарифмическую функцию");
+            return;
         }
     }
     else if (ui->radioButton_9->isChecked()) {
-        QString input = ui->lineEdit_4->text();
         ModulusFunction* parsedFunc = ModulusParser::parse(input);
         if (parsedFunc) {
             Function* newFunc = new ModulusFunction();
@@ -231,7 +283,12 @@ void MainWindow::on_pushButton_6_clicked()
             delete parsedFunc;
         } else {
             QMessageBox::warning(this, "Ошибка", "Не удалось распарсить модульную функцию");
+            return;
         }
+    }
+    else {
+        QMessageBox::warning(this, "Ошибка", "Не выбрана функция для построения");
+        return;
     }
 }
 

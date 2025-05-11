@@ -1,8 +1,5 @@
 #include "mainwindow.h"
-
 #include <QApplication>
-
-//проверка на коммит из QT
 
 int main(int argc, char *argv[])
 {

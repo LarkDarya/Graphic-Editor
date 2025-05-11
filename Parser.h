@@ -7,12 +7,20 @@
 #include <QDebug>
 #include "Function.h"
 
+// Парсер для полиноминальных функций
 class PolynomialParser {
 public:
     static QVector<double> parse(const QString& input) {
         QString line = input;
         line.remove(' ');
-        // Берём слагаемые с возможным дробным коэффициентом
+
+        // Проверяем, содержит ли ввод только разрешённые символы для многочлена, иначе возвращаем пустой QVector
+        QRegularExpression validCharsRegex(R"(^[0-9xX+\-*/^.\s/]+$)");
+        if (!validCharsRegex.match(line).hasMatch()) {
+            return {}; // пустой QVector — значит неверный ввод (например, другие функции)
+        }
+
+        // Берём слагаемые
         QRegularExpression re(R"(([+-]?)(\d+(?:/\d+)?|\d*\.?\d*)\*?x?(\^(\d+))?)");
 
         QRegularExpressionMatchIterator i = re.globalMatch(line);
@@ -20,8 +28,14 @@ public:
         int maxDegree = 0;
         QVector<std::pair<int, double>> terms;
 
+        bool foundTerm = false; // Для проверки, есть ли хотя бы один корректный слагаемый
+
         while (i.hasNext()) {
             QRegularExpressionMatch match = i.next();
+
+            if (match.captured(0).isEmpty()) continue;
+
+            foundTerm = true;
 
             QString signStr = match.captured(1);
             QString coeffStr = match.captured(2);
@@ -36,7 +50,6 @@ public:
             if (coeffStr.isEmpty()) {
                 coeff = hasX ? 1.0 : 0.0;
             } else {
-                // Проверяем, есть ли дробь
                 if (coeffStr.contains('/')) {
                     QStringList parts = coeffStr.split('/');
                     if (parts.size() == 2) {
@@ -46,12 +59,16 @@ public:
                         if (ok1 && ok2 && denominator != 0)
                             coeff = numerator / denominator;
                         else
-                            coeff = 0.0;
+                            return {};
                     } else {
-                        coeff = 0.0;
+                        return {};
                     }
                 } else {
-                    coeff = coeffStr.toDouble();
+                    bool okCoeff = false;
+                    coeff = coeffStr.toDouble(&okCoeff);
+                    if (!okCoeff) {
+                        return {};
+                    }
                 }
             }
 
@@ -59,13 +76,21 @@ public:
 
             int power = 0;
             if (hasX) {
-                power = powerStr.isEmpty() ? 1 : powerStr.toInt();
+                bool okPower = false;
+                power = powerStr.isEmpty() ? 1 : powerStr.toInt(&okPower);
+                if (!okPower && !powerStr.isEmpty()) {
+                    return {};
+                }
             }
 
             if (power > maxDegree)
                 maxDegree = power;
 
             terms.append({power, coeff});
+        }
+
+        if (!foundTerm) {
+            return {};
         }
 
         QVector<double> coefs(maxDegree + 1, 0.0);
@@ -83,16 +108,26 @@ public:
     static TrigonometricFunction* parse(const QString& input) {
         QString str = input.simplified().replace(" ", "");
 
-        // Общий шаблон для тригонометрических функций: a*sin(b*x + c) + d
-        QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?(sin|cos|tan|cot)\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]\d+\.?\d*)?\)([+-]\d+\.?\d*)?$)");
+        // Общий шаблон для тригонометрических функций
+        QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?(sin|cos|tan|cot)\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]?\d*\.?\d*)?\)([+-]?\d*\.?\d*)?$)");
         QRegularExpressionMatch match = re.match(str);
 
         if (!match.hasMatch()) {
             // Проверим вариант без коэффициента перед функцией (-sin(x))
-            re.setPattern(R"(^([+-])?(sin|cos|tan|cot)\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]\d+\.?\d*)?\)([+-]\d+\.?\d*)?$)");
+            re.setPattern(R"(^([+-])?(sin|cos|tan|cot)\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]?\d*\.?\d*)?\)([+-]?\d*\.?\d*)?$)");
             match = re.match(str);
             if (!match.hasMatch()) {
-                return nullptr;
+                // Проверим вариант с отрицательным аргументом (sin(-x))
+                re.setPattern(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?(sin|cos|tan|cot)\(-x\)([+-]?\d*\.?\d*)?$)");
+                match = re.match(str);
+                if (!match.hasMatch()) {
+                    // Проверим вариант без коэффициента и с отрицательным аргументом (-sin(-x))
+                    re.setPattern(R"(^([+-])?(sin|cos|tan|cot)\(-x\)([+-]?\d*\.?\d*)?$)");
+                    match = re.match(str);
+                    if (!match.hasMatch()) {
+                        return nullptr;
+                    }
+                }
             }
         }
 
@@ -105,16 +140,27 @@ public:
         else return nullptr;
 
         double a = 1.0;
-        // Обработка отрицательного знака перед функцией
+        // Обработка коэффициента перед функцией, с учетом знака
         if (match.captured(1) == "-") {
             a = -1.0;
         } else if (!match.captured(1).isEmpty() && match.captured(1) != "+") {
             a = match.captured(1).toDouble();
         }
 
-        double b = match.captured(3).isEmpty() ? 1.0 : match.captured(3).toDouble();
-        double c = match.captured(4).isEmpty() ? 0.0 : match.captured(4).toDouble();
-        double d = match.captured(5).isEmpty() ? 0.0 : match.captured(5).toDouble();
+        double b = 1.0;
+        double c = 0.0;
+
+        // Обработка отрицательного аргумента (-x)
+        if (match.captured(0).contains("(-x)")) {
+            b = -1.0;
+        } else {
+            // Обычная обработка аргумента
+            b = match.captured(3).isEmpty() ? 1.0 : match.captured(3).toDouble();
+            c = match.captured(4).isEmpty() ? 0.0 : match.captured(4).toDouble();
+        }
+
+        // Последний коэффициент — свободный член снаружи
+        double d = match.captured(match.capturedTexts().size() - 1).isEmpty() ? 0.0 : match.captured(match.capturedTexts().size() - 1).toDouble();
 
         TrigonometricFunction* func = new TrigonometricFunction(type);
         func->setCoefficients({d, a, b, c});
@@ -122,13 +168,14 @@ public:
     }
 };
 
+
 // Парсер для экспоненциальных функций
 class ExponentialParser {
 public:
     static ExponentialFunction* parse(const QString& input) {
         QString str = input.simplified().replace(" ", "");
 
-        // Шаблон для функций вида a*exp(b*x + c) + d
+        // Общий шаблон для функций
         QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?exp\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]\d+\.?\d*)?\)([+-]\d+\.?\d*)?$)");
         QRegularExpressionMatch match = re.match(str);
 
@@ -149,7 +196,8 @@ public:
             a = match.captured(1).toDouble();
         }
 
-        double b = match.captured(2).isEmpty() ? 1.0 : match.captured(2).toDouble();
+        QString cap = match.captured(2);
+        double b = (cap == "-") ? -1.0 : (cap.isEmpty() ? 1.0 : cap.toDouble());
         double c = match.captured(3).isEmpty() ? 0.0 : match.captured(3).toDouble();
         double d = match.captured(4).isEmpty() ? 0.0 : match.captured(4).toDouble();
 
@@ -159,118 +207,70 @@ public:
     }
 };
 
+// Парсер для логаритмических функций
 class LogarithmicParser {
 public:
     static LogarithmicFunction* parse(const QString& input) {
         QString str = input.simplified().replace(" ", "");
 
-        // Обработка дробей в выражении
-        str = replaceFractions(str);
-
-        // Основной шаблон для всех случаев
-        QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?\+?)?([+-]?(?:\d+\.?\d*|\.\d+)?)\*?(log_(\d+\.?\d*|\(\d+/\d+\))\(([^)]+)\)|ln\(([^)]+)\)|log\(([^)]+)\))([+-]\d+\.?\d*)?$)");
+        // Общий шаблон для функций
+        QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?log_(\d+\.?\d*|\(\d+/\d+\))\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]\d+\.?\d*)?\)([+-]\d+\.?\d*)?$)");
         QRegularExpressionMatch match = re.match(str);
 
         if (!match.hasMatch()) {
-            return nullptr;
+            // Проверим вариант с натуральным логарифмом (ln)
+            re.setPattern(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?ln\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]\d+\.?\d*)?\)([+-]\d+\.?\d*)?$)");
+            match = re.match(str);
+            if (!match.hasMatch()) {
+                // Проверим вариант с десятичным логарифмом (log)
+                re.setPattern(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?log\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]\d+\.?\d*)?\)([+-]\d+\.?\d*)?$)");
+                match = re.match(str);
+                if (!match.hasMatch()) {
+                    return nullptr;
+                }
+            }
         }
 
-        // Парсим коэффициенты
-        double d = 0.0, a = 1.0, base = 10.0, c = 1.0, e = 0.0;
-
-        // Обработка d (свободного члена)
-        if (!match.captured(1).isEmpty()) {
-            QString dStr = match.captured(1);
-            if (dStr.endsWith('+')) dStr.chop(1);
-            if (!dStr.isEmpty()) d = dStr.toDouble();
-        }
-
-        // Обработка a (коэффициента перед логарифмом)
-        if (!match.captured(2).isEmpty()) {
-            QString aStr = match.captured(2);
-            a = parseCoefficient(aStr);
-        } else if (str.startsWith('-')) {
+        double a = 1.0;
+        // Обработка отрицательного знака перед функцией
+        if (match.captured(1) == "-") {
             a = -1.0;
+        } else if (!match.captured(1).isEmpty() && match.captured(1) != "+") {
+            a = match.captured(1).toDouble();
         }
 
-        // Определение типа логарифма и его основания
-        if (!match.captured(4).isEmpty()) { // log_b(...)
-            base = evalExpression(match.captured(4));
-            parseInnerExpression(match.captured(5), c, e);
-        }
-        else if (!match.captured(6).isEmpty()) { // ln(...)
+        // Определение основания логарифма
+        double base = 10.0;
+        if (re.pattern().contains("log_")) {
+            base = evalExpression(match.captured(2));
+        } else if (re.pattern().contains("ln")) {
             base = M_E;
-            parseInnerExpression(match.captured(6), c, e);
-        }
-        else if (!match.captured(7).isEmpty()) { // log(...)
-            base = 10.0;
-            parseInnerExpression(match.captured(7), c, e);
         }
 
-        // Обработка дополнительного слагаемого (e)
-        if (!match.captured(8).isEmpty()) {
-            e += match.captured(8).toDouble();
-        }
+        // Парсинг аргумента логарифма (c*x + d)
+        QString cap = match.captured(re.pattern().contains("ln") ? 2 : 3);
+        double c = (cap == "-") ? -1.0 : (cap.isEmpty() ? 1.0 : cap.toDouble());
+        double d = match.captured(re.pattern().contains("ln") ? 3 : 4).isEmpty() ? 0.0 : match.captured(re.pattern().contains("ln") ? 3 : 4).toDouble();
 
-        // Создаем и возвращаем функцию
+        // Парсинг свободного члена снаружи (e)
+        double e = match.captured(re.pattern().contains("ln") ? 4 : 5).isEmpty() ? 0.0 : match.captured(re.pattern().contains("ln") ? 4 : 5).toDouble();
+
         LogarithmicFunction* func = new LogarithmicFunction();
         func->setCoefficients({a, base, c, d, e});
         return func;
     }
 
-
 private:
-    static double parseCoefficient(const QString& coeff) {
-        if (coeff == "+") return 1.0;
-        if (coeff == "-") return -1.0;
-        return coeff.toDouble();
-    }
-
-
-    static void parseInnerExpression(const QString& expr, double& c, double& e) {
-        if (expr.isEmpty()) return;
-
-        QRegularExpression innerRe(R"(([+-]?\d*\.?\d*)\*?x([+-]\d+\.?\d*)?)");
-        QRegularExpressionMatch innerMatch = innerRe.match(expr);
-
-        if (innerMatch.hasMatch()) {
-            QString cStr = innerMatch.captured(1);
-            QString eStr = innerMatch.captured(2);
-
-            if (!cStr.isEmpty()) c = cStr.isEmpty() ? 1.0 : cStr.toDouble();
-            if (!eStr.isEmpty()) e = eStr.toDouble();
-        } else {
-            // Если нет x, то это просто константа e
-            e = expr.toDouble();
-            c = 0.0;
-        }
-    }
-
-    static QString replaceFractions(const QString& expr) {
-        QString result = expr;
-        QRegularExpression fracRe(R"(\((\d+)/(\d+)\))");
-        QRegularExpressionMatchIterator i = fracRe.globalMatch(expr);
-
-        while (i.hasNext()) {
-            QRegularExpressionMatch match = i.next();
-            double num = match.captured(1).toDouble();
-            double den = match.captured(2).toDouble();
-            if (den != 0) {
-                double value = num / den;
-                result.replace(match.captured(0), QString::number(value, 'g', 10));
-            }
-        }
-        return result;
-    }
-
     static double evalExpression(const QString& expr) {
-        if (expr.isEmpty()) return 1.0;
-        if (expr.contains('/')) {
-            QStringList parts = expr.split('/');
-            if (parts.size() == 2) {
-                double num = parts[0].toDouble();
-                double den = parts[1].toDouble();
-                return den != 0 ? num / den : 1.0;
+        if (expr.startsWith('(') && expr.endsWith(')')) {
+            QString inner = expr.mid(1, expr.length() - 2);
+            if (inner.contains('/')) {
+                QStringList parts = inner.split('/');
+                if (parts.size() == 2) {
+                    double num = parts[0].toDouble();
+                    double den = parts[1].toDouble();
+                    return den != 0 ? num / den : 1.0;
+                }
             }
         }
         return expr.toDouble();
@@ -278,8 +278,6 @@ private:
 };
 
 // Парсер для модульных функций
-// Простая реализация, разбивающая строку на части
-
 class ModulusParser {
 public:
     static ModulusFunction* parse(const QString& input) {
@@ -308,12 +306,11 @@ public:
                 c = cStr.toDouble();
             else if (cStr == "-")
                 c = -1.0;
-            // удаляем из строки множитель c и начальный '|'
             int pos = cMatch.capturedLength();
-            str = str.mid(pos - 1); // сохранить '|...' (сдвинем обратно на 1)
+            str = str.mid(pos - 1);
         }
 
-        // Теперь внутри модуля ожидается что-то типа "a*x+b" или просто "x"
+        // Теперь внутри модуля ожидается "a*x+b" или просто "x"
         QRegularExpression insideExpr(R"(\|([+-]?\d*\.?\d*)\*?x([+-]\d+(\.\d+)?)?\|)");
         QRegularExpressionMatch insideMatch = insideExpr.match(str);
         double a = 1.0;
@@ -337,7 +334,7 @@ public:
             else if (str == "|-x|")
                 a = -1.0, b = 0.0;
             else
-                return nullptr; // не распознан формат
+                return nullptr;
         }
 
         ModulusFunction* func = new ModulusFunction();
@@ -345,7 +342,5 @@ public:
         return func;
     }
 };
-
-
 
 #endif // PARSER_H

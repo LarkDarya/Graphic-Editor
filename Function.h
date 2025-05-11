@@ -37,7 +37,7 @@ public:
     QString getName() const override { return "Polynomial"; }
 };
 
-// Тригонометрические функции
+// Тригонометрические функции вида a * sin(b * x + c) + d
 class TrigonometricFunction : public Function {
 public:
     enum Type { Sin, Cos, Tan, Cot };
@@ -100,9 +100,9 @@ public:
     }
 };
 
-// Экспоненциальные функции вида a * exp(b * x)
+// Экспоненциальные функции вида a * exp(b * x + c) + d
 class ExponentialFunction : public Function {
-    QVector<double> coefficients; // [d, a, b, c]  - f(x) = d + a * exp(b * x + c)
+    QVector<double> coefficients;
 public:
     ExponentialFunction() : coefficients({0.0, 1.0, 1.0, 0.0}) {}
 
@@ -128,9 +128,9 @@ public:
     QString getName() const override { return "ExponentialWithOffset"; }
 };
 
-
+// Логарифмические функции вида a * log_b(c * x + d) + e
 class LogarithmicFunction : public Function {
-    QVector<double> coefficients; // [a, base, c, d, e]
+    QVector<double> coefficients;
     const double NEAR_ZERO_THRESHOLD = 1e-10; // Порог для определения близости к 0
 public:
     LogarithmicFunction() : coefficients({1.0, 10.0, 1.0, 0.0, 0.0}) {}
@@ -142,22 +142,24 @@ public:
         double d = coefficients.value(3, 0.0);
         double e = coefficients.value(4, 0.0);
 
-        // Вычисляем аргумент логарифма
-        double arg = c * x + e;
+        double arg = c * x + d;
 
-        // Обработка случаев, когда аргумент приближается к 0
-        if (std::abs(arg) < NEAR_ZERO_THRESHOLD) {
-            // Определяем направление бесконечности в зависимости от знака
-            return (arg >= 0 && a > 0) ? -10000
-                              : 10000;
+        // Для вертикальной асимптоты возвращаем большое значение
+        if (arg <= 0.0) {
+            return (a > 0) ? -1e10 : 1e10;
         }
 
-        return d + a * (std::log(arg) / std::log(base));
+        // Особое поведение вблизи 0
+        if (arg < NEAR_ZERO_THRESHOLD) {
+            return (a > 0) ? -1e10 : 1e10;
+        }
+
+        return e + a * (std::log(arg) / std::log(base));
     }
+
 
     void setCoefficients(const QVector<double>& coeffs) override {
         coefficients = coeffs;
-        // Гарантируем минимальное количество коэффициентов
         while (coefficients.size() < 5) {
             if (coefficients.size() == 2) coefficients.append(1.0); // c
             else if (coefficients.size() == 3) coefficients.append(0.0); // d
@@ -175,12 +177,8 @@ public:
 };
 
 
-// Модульная функции вида |x + a| + b
+// Модульная функции вида c * |a * x + b| + d
 class ModulusFunction : public Function {
-    // coefficients[0] = b (смещение внутри модуля)
-    // coefficients[1] = d (смещение по y)
-    // coefficients[2] = a (коэффициент при x)
-    // coefficients[3] = c (множитель перед модулем)
     QVector<double> coefficients;
 
 public:

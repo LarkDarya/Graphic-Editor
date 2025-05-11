@@ -5,6 +5,7 @@
 #include "graphicwidget.h"
 #include "RangeController.h"
 #include "Parser.h"
+#include <QColor>
 #include "Function.h"
 
 QT_BEGIN_NAMESPACE
@@ -44,8 +45,8 @@ private:
 
     Function* currentFunc1 = nullptr; // Для первого графика
     Function* currentFunc2 = nullptr; // Для второго графика
-    QColor color1 = Qt::blue;         // Цвет первого графика
-    QColor color2 = Qt::red;
+    QColor color1 = QColor("#1E2A78");
+    QColor color2 = QColor("#FF2E4C");
 
 
 };

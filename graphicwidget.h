@@ -5,7 +5,7 @@
 #include "qcustomplot.h"
 #include "Function.h"
 
-    class GraphicWidget : public QWidget
+class GraphicWidget : public QWidget
 {
     Q_OBJECT
 public:
@@ -33,7 +33,6 @@ public:
                 this, &GraphicWidget::onRangeChanged);
         connect(m_plot->yAxis, static_cast<void (QCPAxis::*)(const QCPRange &)>(&QCPAxis::rangeChanged),
                 this, &GraphicWidget::onRangeChanged);
-
     }
 
     int functionsCount() const {
@@ -46,33 +45,67 @@ public:
     }
 
     // Добавить функцию
-    void addFunction(Function* func, const QColor& color = QColor("#1E2A78"))
-    {
-        // Создаем новый график (QCPGraph)
+    void addFunction(Function* func, const QColor& color = QColor("#1E2A78")) {
         QCPGraph* graph = m_plot->addGraph();
         graph->setPen(QPen(color));
 
-        // Заполняем точками графика
         QVector<double> xData, yData;
-
-        const int pointsCount = 1000; // количество точек
+        const int pointsCount = 1000;
         double xMin = m_plot->xAxis->range().lower;
         double xMax = m_plot->xAxis->range().upper;
-        double step = (xMax - xMin) / pointsCount;
 
-        for (int i = 0; i <= pointsCount; ++i)
-        {
-            double x = xMin + i * step;
-            xData.append(x);
-            yData.append(func->evaluate(x)); // Предполагается, что у Function есть метод evaluate
+        // Для логарифмических функций корректируем диапазон
+        if (func->getName() == "Logarithmic") {
+            xMin = std::max(xMin, -10.0); // Минимальное значение для поиска асимптоты
         }
 
+        double step = (xMax - xMin) / pointsCount;
+
+        // Находим точку, где аргумент логарифма равен 0 (асимптота)
+        double asymptoteX = std::numeric_limits<double>::max();
+        if (func->getName() == "Logarithmic") {
+            QVector<double> coeffs = func->getCoefficients();
+            double c = coeffs[2];
+            double d = coeffs[3];
+            if (c != 0) {
+                asymptoteX = -d/c;
+            }
+        }
+
+        // Строим график
+        for (int i = 0; i <= pointsCount; ++i) {
+            double x = xMin + i * step;
+
+            // Добавляем точки вблизи асимптоты для лучшего отображения
+            if (func->getName() == "Logarithmic" &&
+                std::abs(x - asymptoteX) < step*2) {
+                // Точки слева от асимптоты
+                double x_left = asymptoteX - step*10;
+                double y_left = func->evaluate(x_left);
+                xData.append(x_left);
+                yData.append(y_left);
+
+                // Точки справа от асимптоты
+                double x_right = asymptoteX + step*10;
+                double y_right = func->evaluate(x_right);
+                xData.append(x_right);
+                yData.append(y_right);
+            }
+
+            double y = func->evaluate(x);
+            xData.append(x);
+            yData.append(y);
+        }
+
+        // Настройки для отображения асимптоты
+        graph->setLineStyle(QCPGraph::lsLine);
+        graph->setScatterStyle(QCPScatterStyle::ssNone);
         graph->setData(xData, yData);
 
         m_functions.append({func, graph});
-
         m_plot->replot();
     }
+
 
     // Очистить все функции
     void clearFunctions()
