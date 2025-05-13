@@ -19,22 +19,10 @@ public:
 class PolynomialFunction : public Function {
     QVector<double> coefficients;
 public:
-    double evaluate(double x) const override {
-        double result = 0;
-        double power = 1;
-        for (double c : coefficients) {
-            result += c * power;
-            power *= x;
-        }
-        return result;
-    }
-    void setCoefficients(const QVector<double>& coeffs) override {
-        coefficients = coeffs;
-    }
-    QVector<double> getCoefficients() const override {
-        return coefficients;
-    }
-    QString getName() const override { return "Polynomial"; }
+    double evaluate(double x) const override;
+    void setCoefficients(const QVector<double>& coeffs) override;
+    QVector<double> getCoefficients() const override;
+    QString getName() const override;
 };
 
 // Тригонометрические функции вида a * sin(b * x + c) + d
@@ -46,169 +34,53 @@ private:
     QVector<double> coefficients;  // [d, a, b, c]
 
 public:
-    TrigonometricFunction()
-        : funcType(Sin), coefficients({0.0, 1.0, 1.0, 0.0}) {}
+    TrigonometricFunction();
+    explicit TrigonometricFunction(Type type);
 
-    explicit TrigonometricFunction(Type type)
-        : funcType(type), coefficients({0.0, 1.0, 1.0, 0.0}) {}
+    void setType(Type type);
+    Type getType() const;
 
-    void setType(Type type) { funcType = type; }
-
-    Type getType() const {
-        return funcType;
-    }
-
-    double evaluate(double x) const override {
-        double d = coefficients.size() > 0 ? coefficients[0] : 0.0;
-        double a = coefficients.size() > 1 ? coefficients[1] : 1.0;
-        double b = coefficients.size() > 2 ? coefficients[2] : 1.0;
-        double c = coefficients.size() > 3 ? coefficients[3] : 0.0;
-
-        double val = b * x + c;
-
-        switch (funcType) {
-        case Sin: return d + a * sin(val);
-        case Cos: return d + a * cos(val);
-        case Tan: return d + a * tan(val);
-        case Cot: {
-            double t = tan(val);
-            return d + (t != 0 ? a / t : 0);
-        }
-        }
-        return 0;
-    }
-
-    void setCoefficients(const QVector<double>& coeffs) override {
-        coefficients = coeffs;
-        while (coefficients.size() < 4) {
-            coefficients.push_back(0.0);
-        }
-    }
-
-    QVector<double> getCoefficients() const override {
-        return coefficients;
-    }
-
-    QString getName() const override {
-        switch(funcType) {
-        case Sin: return "Sin";
-        case Cos: return "Cos";
-        case Tan: return "Tan";
-        case Cot: return "Cot";
-        }
-        return "Trigonometric";
-    }
+    double evaluate(double x) const override;
+    void setCoefficients(const QVector<double>& coeffs) override;
+    QVector<double> getCoefficients() const override;
+    QString getName() const override;
 };
 
 // Экспоненциальные функции вида a * exp(b * x + c) + d
 class ExponentialFunction : public Function {
     QVector<double> coefficients;
 public:
-    ExponentialFunction() : coefficients({0.0, 1.0, 1.0, 0.0}) {}
+    ExponentialFunction();
 
-    double evaluate(double x) const override {
-        double d = coefficients.size() > 0 ? coefficients[0] : 0.0;
-        double a = coefficients.size() > 1 ? coefficients[1] : 1.0;
-        double b = coefficients.size() > 2 ? coefficients[2] : 1.0;
-        double c = coefficients.size() > 3 ? coefficients[3] : 0.0;
-        return d + a * exp(b * x + c);
-    }
-
-    void setCoefficients(const QVector<double>& coeffs) override {
-        coefficients = coeffs;
-        while (coefficients.size() < 4) {
-            coefficients.push_back(0.0);
-        }
-    }
-
-    QVector<double> getCoefficients() const override {
-        return coefficients;
-    }
-
-    QString getName() const override { return "ExponentialWithOffset"; }
+    double evaluate(double x) const override;
+    void setCoefficients(const QVector<double>& coeffs) override;
+    QVector<double> getCoefficients() const override;
+    QString getName() const override;
 };
 
 // Логарифмические функции вида a * log_b(c * x + d) + e
 class LogarithmicFunction : public Function {
     QVector<double> coefficients;
-    const double NEAR_ZERO_THRESHOLD = 1e-10; // Порог для определения близости к 0
+    const double NEAR_ZERO_THRESHOLD = 1e-10;
 public:
-    LogarithmicFunction() : coefficients({1.0, 10.0, 1.0, 0.0, 0.0}) {}
+    LogarithmicFunction();
 
-    double evaluate(double x) const override {
-        double a = coefficients.value(0, 1.0);
-        double base = coefficients.value(1, 10.0);
-        double c = coefficients.value(2, 1.0);
-        double d = coefficients.value(3, 0.0);
-        double e = coefficients.value(4, 0.0);
-
-        double arg = c * x + d;
-
-        // Для вертикальной асимптоты возвращаем большое значение
-        if (arg <= 0.0) {
-            return (a > 0) ? -1e10 : 1e10;
-        }
-
-        // Особое поведение вблизи 0
-        if (arg < NEAR_ZERO_THRESHOLD) {
-            return (a > 0) ? -1e10 : 1e10;
-        }
-
-        return e + a * (std::log(arg) / std::log(base));
-    }
-
-
-    void setCoefficients(const QVector<double>& coeffs) override {
-        coefficients = coeffs;
-        while (coefficients.size() < 5) {
-            if (coefficients.size() == 2) coefficients.append(1.0); // c
-            else if (coefficients.size() == 3) coefficients.append(0.0); // d
-            else coefficients.append(0.0); // e
-        }
-    }
-
-    QVector<double> getCoefficients() const override {
-        return coefficients;
-    }
-
-    QString getName() const override {
-        return "Logarithmic";
-    }
+    double evaluate(double x) const override;
+    void setCoefficients(const QVector<double>& coeffs) override;
+    QVector<double> getCoefficients() const override;
+    QString getName() const override;
 };
-
 
 // Модульная функции вида c * |a * x + b| + d
 class ModulusFunction : public Function {
     QVector<double> coefficients;
-
 public:
-    ModulusFunction() : coefficients({0.0, 0.0, 1.0, 1.0}) {}
+    ModulusFunction();
 
-    double evaluate(double x) const override {
-        double b = coefficients.size() > 0 ? coefficients[0] : 0.0;
-        double d = coefficients.size() > 1 ? coefficients[1] : 0.0;
-        double a = coefficients.size() > 2 ? coefficients[2] : 1.0;
-        double c = coefficients.size() > 3 ? coefficients[3] : 1.0;
-
-        return d + c * std::abs(a * x + b);
-    }
-
-    void setCoefficients(const QVector<double>& coeffs) override {
-        coefficients = coeffs;
-        while (coefficients.size() < 4) {
-            coefficients.append(0.0);
-        }
-    }
-
-    QVector<double> getCoefficients() const override {
-        return coefficients;
-    }
-
-    QString getName() const override {
-        return "Modulus";
-    }
+    double evaluate(double x) const override;
+    void setCoefficients(const QVector<double>& coeffs) override;
+    QVector<double> getCoefficients() const override;
+    QString getName() const override;
 };
-
-
 
 #endif // FUNCTION_H
