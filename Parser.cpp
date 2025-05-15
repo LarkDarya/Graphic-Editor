@@ -1,7 +1,15 @@
 #include "Parser.h"
-#include <cmath> // for M_E
+#include <cmath>
 
-QVector<double> PolynomialParser::parse(const QString& input) {
+Function* PolynomialParser::parse(const QString& input) {
+    QVector<double> coefficients = parseCoefficients(input);
+    if (coefficients.isEmpty()) {
+        return nullptr;
+    }
+    return new PolynomialFunction(coefficients);
+}
+
+QVector<double> PolynomialParser::parseCoefficients(const QString& input) {
     QString line = input;
     line.remove(' ');
 
@@ -85,7 +93,7 @@ QVector<double> PolynomialParser::parse(const QString& input) {
     return coefs;
 }
 
-TrigonometricFunction* TrigonometricParser::parse(const QString& input) {
+Function* TrigonometricParser::parse(const QString& input) {
     QString str = input.simplified().replace(" ", "");
 
     QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?(sin|cos|tan|cot)\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]?\d*\.?\d*)?\)([+-]?\d*\.?\d*)?$)");
@@ -139,7 +147,7 @@ TrigonometricFunction* TrigonometricParser::parse(const QString& input) {
     return func;
 }
 
-ExponentialFunction* ExponentialParser::parse(const QString& input) {
+Function* ExponentialParser::parse(const QString& input) {
     QString str = input.simplified().replace(" ", "");
 
     QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?exp\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]\d+\.?\d*)?\)([+-]\d+\.?\d*)?$)");
@@ -170,7 +178,7 @@ ExponentialFunction* ExponentialParser::parse(const QString& input) {
     return func;
 }
 
-LogarithmicFunction* LogarithmicParser::parse(const QString& input) {
+Function* LogarithmicParser::parse(const QString& input) {
     QString str = input.simplified().replace(" ", "");
 
     QRegularExpression re(R"(^([+-]?(?:\d+\.?\d*|\.\d+)?)\*?log_(\d+\.?\d*|\(\d+/\d+\))\(([+-]?(?:\d+\.?\d*|\.\d+)?)\*?x([+-]\d+\.?\d*)?\)([+-]\d+\.?\d*)?$)");
@@ -227,7 +235,7 @@ double LogarithmicParser::evalExpression(const QString& expr) {
     return expr.toDouble();
 }
 
-ModulusFunction* ModulusParser::parse(const QString& input) {
+Function* ModulusParser::parse(const QString& input) {
     QString str = input.simplified().replace(" ", "");
 
     QRegularExpression dExpr(R"(([+-]\d+(\.\d+)?)$)");

@@ -19,6 +19,9 @@ public:
 class PolynomialFunction : public Function {
     QVector<double> coefficients;
 public:
+    PolynomialFunction() = default; // или реализовать явно
+    explicit PolynomialFunction(const QVector<double>& coeffs) : coefficients(coeffs) {}
+
     double evaluate(double x) const override;
     void setCoefficients(const QVector<double>& coeffs) override;
     QVector<double> getCoefficients() const override;
